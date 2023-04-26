@@ -19,35 +19,34 @@ interface MarkerInfo {
   description: string;
 }
 
-function LocationMarker() {
+function LocationMarker(props: { cursorMode: CursorModes }) {
   const [markers, setMarkers] = useState<MarkerInfo[]>([]);
   const map = useMapEvents({
     click(e) {
-      console.log(e);
-      const { lat, lng } = e.latlng;
-      setMarkers((prev) => [
-        ...prev,
-        {
-          lat: lat,
-          long: lng,
-          description: "A marker?",
-        },
-      ]);
-
-      //map.locate();
+      if (props.cursorMode == "marker") {
+        const { lat, lng } = e.latlng;
+        setMarkers((prev) => [
+          ...prev,
+          {
+            lat: lat,
+            long: lng,
+            description: "A marker?",
+          },
+        ]);
+      }
     },
   });
 
   return (
-    <div>
-      {markers.map(({ lat, long, description }) => {
+    <>
+      {markers.map(({ lat, long, description }, index) => {
         return (
-          <Marker position={[lat, long]}>
+          <Marker position={[lat, long]} key={index}>
             <Popup>{description}</Popup>
           </Marker>
         );
       })}
-    </div>
+    </>
   );
 }
 
@@ -71,12 +70,7 @@ function App() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <Marker position={[51.505, -0.09]}>
-            <Popup>
-              A pretty CSS3 popup. <br /> Easily customizable.
-            </Popup>
-          </Marker>
-          <LocationMarker />
+          <LocationMarker cursorMode={mode} />
         </MapContainer>
       </div>
       <div>
