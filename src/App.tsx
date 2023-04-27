@@ -4,6 +4,7 @@ import {
   Marker,
   Popup,
   useMapEvents,
+  Circle,
 } from "react-leaflet";
 import "./App.css";
 import { useState } from "react";
@@ -11,26 +12,49 @@ import { useState } from "react";
 enum CursorModes {
   none = "none",
   marker = "marker",
+  circle = "circle",
 }
 
-interface MarkerInfo {
+interface MapCoordinates {
   lat: number;
   long: number;
+}
+
+interface MarkerInfo extends MapCoordinates {
+  type: "marker";
   description: string;
 }
 
+interface CircleInfo extends MapCoordinates {
+  type: "circle";
+  radius: number;
+}
+
+type MapElements = MarkerInfo | CircleInfo;
+
 function LocationMarker(props: { cursorMode: CursorModes }) {
-  const [markers, setMarkers] = useState<MarkerInfo[]>([]);
+  const [markers, setMarkers] = useState<MapElements[]>([]);
   const map = useMapEvents({
     click(e) {
+      const { lat, lng } = e.latlng;
       if (props.cursorMode == "marker") {
-        const { lat, lng } = e.latlng;
         setMarkers((prev) => [
           ...prev,
           {
+            type: "marker",
             lat: lat,
             long: lng,
             description: "A marker?",
+          },
+        ]);
+      } else if (props.cursorMode == "circle") {
+        setMarkers((prev) => [
+          ...prev,
+          {
+            type: "circle",
+            lat: lat,
+            long: lng,
+            radius: 100,
           },
         ]);
       }
@@ -39,12 +63,18 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
 
   return (
     <>
-      {markers.map(({ lat, long, description }, index) => {
-        return (
-          <Marker position={[lat, long]} key={index}>
-            <Popup>{description}</Popup>
-          </Marker>
-        );
+      {markers.map(({ lat, long, ...mapElement }, index) => {
+        if (mapElement.type == "marker") {
+          return (
+            <Marker position={[lat, long]} key={index}>
+              <Popup>{mapElement.description}</Popup>
+            </Marker>
+          );
+        } else if (mapElement.type == "circle") {
+          return <Circle center={[lat, long]} radius={mapElement.radius} />;
+        } else {
+          return null;
+        }
       })}
     </>
   );
@@ -77,6 +107,7 @@ function App() {
         <span>mode: {mode}</span>
         <button onClick={() => setMode(CursorModes.none)}>none</button>
         <button onClick={() => setMode(CursorModes.marker)}>marker</button>
+        <button onClick={() => setMode(CursorModes.circle)}>circle</button>
       </div>
     </div>
   );
