@@ -94,6 +94,7 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
 
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
+        // * 1000 -> to kilometers
         const d = R * c * 1000;
 
         (elementsCopy[selectedElementIndex] as CircleInfo).radius = d;
