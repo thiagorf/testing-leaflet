@@ -62,7 +62,7 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
   const [lastSelectedId, setLastSelectedId] = useState<string>();
   const [polyCoordinates, setPolyCoordinates] = useState<[number, number][]>();
   const [polyStatus, setPolyStatus] = useState<"selecting" | "creating">(
-    "selecting"
+    "creating"
   );
 
   const map = useMapEvents({
@@ -87,7 +87,6 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
 
       if (props.cursorMode == "poly") {
         if (polyCoordinates) {
-          console.log("PolyCoordinates", polyCoordinates);
           const elementsCopy = [...markers];
           const selectedElementIndex = elementsCopy.findIndex(
             (m) => m.id === lastSelectedId
@@ -95,12 +94,11 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
           const element = elementsCopy[selectedElementIndex];
           if (element.type == "poly") {
             element.positions[element.positions.length - 1] = [lat, lng];
-            setPolyStatus("selecting");
             setMarkers(elementsCopy);
             setPolyCoordinates(element.positions);
+            setPolyStatus("creating");
           }
         } else {
-          console.log("PolyCoordinates null", polyCoordinates);
           setMarkers((prev) => {
             const id = nanoid();
             setLastSelectedId(id);
@@ -166,12 +164,13 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
         const element = elementsCopy[selectedElementIndex];
 
         if (element.type == "poly") {
-          if (polyCoordinates && polyStatus == "selecting") {
+          if (polyCoordinates && polyStatus == "creating") {
             element.positions = [...polyCoordinates, [lat, long]];
             setPolyCoordinates(element.positions);
+            setPolyStatus("selecting");
           }
 
-          if (polyCoordinates && polyStatus == "creating") {
+          if (polyCoordinates && polyStatus == "selecting") {
             const lc = [...polyCoordinates];
             lc[lc.length - 1] = [lat, long];
             element.positions = lc;
@@ -273,6 +272,7 @@ function App() {
         {mode === "circle" && (
           <p>Press and hold to increase size (only on circle marker)</p>
         )}
+        {mode === "poly" && <p>Click, move and click (Polyline)</p>}
       </div>
     </div>
   );
