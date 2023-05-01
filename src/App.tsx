@@ -4,6 +4,7 @@ import {
   Marker,
   Popup,
   useMapEvents,
+  Polyline,
   Circle,
 } from "react-leaflet";
 import "./App.css";
@@ -14,6 +15,12 @@ enum CursorModes {
   none = "none",
   marker = "marker",
   circle = "circle",
+  poly = "poly",
+}
+
+enum PolyTypes {
+  polyline = "polyline",
+  polygon = "polygon",
 }
 
 interface MapCoordinates {
@@ -23,6 +30,13 @@ interface MapCoordinates {
 
 interface ElementsBaseData extends MapCoordinates {
   id: string;
+}
+
+interface PolyInfo {
+  id: string;
+  type: "poly";
+  subtype: PolyTypes;
+  positions: number[][];
 }
 
 interface MarkerInfo extends ElementsBaseData {
@@ -35,7 +49,7 @@ interface CircleInfo extends ElementsBaseData {
   radius: number;
 }
 
-type MapElements = MarkerInfo | CircleInfo;
+type MapElements = MarkerInfo | CircleInfo | PolyInfo;
 
 const R = 6371;
 
@@ -46,12 +60,12 @@ function rad(n: number) {
 function LocationMarker(props: { cursorMode: CursorModes }) {
   const [markers, setMarkers] = useState<MapElements[]>([]);
   const [lastSelectedId, setLastSelectedId] = useState<string>();
+  const [polyCoordinates, setPolyCoordinates] = useState<number[][]>();
 
   const map = useMapEvents({
     mousedown(e) {
       const { lat, lng } = e.latlng;
       if (props.cursorMode == "circle") {
-        console.log("Mouse down event", e);
         setMarkers((prev) => {
           const id = nanoid();
           setLastSelectedId(id);
@@ -67,44 +81,97 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
           ];
         });
       }
+
+      if (props.cursorMode == "poly") {
+        if (polyCoordinates) {
+          const elementsCopy = [...markers];
+          const selectedElementIndex = elementsCopy.findIndex(
+            (m) => m.id === lastSelectedId
+          );
+          const element = elementsCopy[selectedElementIndex];
+          if (element.type == "poly") {
+            element.positions[-1] = [lat, lng];
+
+            setMarkers(elementsCopy);
+            setPolyCoordinates(element.positions);
+          }
+        } else {
+          setMarkers((prev) => {
+            const id = nanoid();
+            setLastSelectedId(id);
+
+            const actualPositions = [[lat, lng]];
+
+            setPolyCoordinates(actualPositions);
+
+            return [
+              ...prev,
+              {
+                id,
+                type: "poly",
+                subtype: PolyTypes.polyline,
+                positions: actualPositions,
+              },
+            ];
+          });
+        }
+      }
     },
     mousemove(e) {
       const { lat, lng: long } = e.latlng;
       if (props.cursorMode == "circle" && lastSelectedId) {
-        console.log("Mouse move event", e);
         const elementsCopy = [...markers];
         const selectedElementIndex = elementsCopy.findIndex(
           (m) => m.id === lastSelectedId
         );
-        const { lat: lat1, long: long1 } = elementsCopy[selectedElementIndex];
+        const element = elementsCopy[selectedElementIndex];
+        // assert marker type
+        if (element.type == "circle") {
+          const { lat: lat1, long: long1 } = element;
 
-        const x1 = lat1 - lat;
-        const distanceLat = rad(x1);
+          const x1 = lat1 - lat;
+          const distanceLat = rad(x1);
 
-        const x2 = long1 - long;
-        const distanceLong = rad(x2);
+          const x2 = long1 - long;
+          const distanceLong = rad(x2);
 
-        //  haversine formula
-        const a =
-          Math.sin(distanceLat / 2) * Math.sin(distanceLat / 2) +
-          Math.cos(rad(lat)) *
-            Math.cos(rad(lat1)) *
-            Math.sin(distanceLong / 2) *
-            Math.sin(distanceLong / 2);
+          //  haversine formula
+          const a =
+            Math.sin(distanceLat / 2) * Math.sin(distanceLat / 2) +
+            Math.cos(rad(lat)) *
+              Math.cos(rad(lat1)) *
+              Math.sin(distanceLong / 2) *
+              Math.sin(distanceLong / 2);
 
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-        // * 1000 -> to kilometers
-        const d = R * c * 1000;
+          // * 1000 -> to kilometers
+          const d = R * c * 1000;
 
-        (elementsCopy[selectedElementIndex] as CircleInfo).radius = d;
-        setMarkers(elementsCopy);
+          (elementsCopy[selectedElementIndex] as CircleInfo).radius = d;
+          setMarkers(elementsCopy);
+        }
+      }
 
-        console.log(d);
+      if (props.cursorMode == "poly" && lastSelectedId) {
+        const elementsCopy = [...markers];
+        const selectedElementIndex = elementsCopy.findIndex(
+          (m) => m.id === lastSelectedId
+        );
+        const element = elementsCopy[selectedElementIndex];
+
+        if (element.type == "poly" && polyCoordinates) {
+          element.positions = [...polyCoordinates, [lat, long]];
+          setPolyCoordinates((prev) => {
+            if (prev) {
+              return [...prev, [lat, long]];
+            }
+          });
+        }
       }
     },
     mouseup(e) {
-      const { lat: x, lng: y } = e.latlng;
+      //const { lat: x, lng: y } = e.latlng;
       if (props.cursorMode == "circle") {
         // d = √((x1 - x2)2+(y1 - y2)2)
         setLastSelectedId("");
@@ -124,25 +191,6 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
             description: "A marker?",
           },
         ]);
-      } else if (props.cursorMode == "circle") {
-        // d = √((x1 - x2)2+(y1 - y2)2)
-        /*
-        console.log("Mouse click event", e);
-        const { x, y } = e.layerPoint;
-        const clickCoordinates = map.layerPointToLatLng([x, y]);
-        console.log(clickCoordinates);
-
-        setMarkers((prev) => [
-          ...prev,
-          {
-            id: nanoid(),
-            type: "circle",
-            lat: lat,
-            long: lng,
-            radius: 0,
-          },
-        ]);
-        */
       }
     },
   });
@@ -154,21 +202,23 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
 
   return (
     <>
-      {markers.map(({ lat, long, ...mapElement }, index) => {
+      {markers.map((mapElement, index) => {
         if (mapElement.type == "marker") {
           return (
-            <Marker position={[lat, long]} key={index}>
+            <Marker position={[mapElement.lat, mapElement.long]} key={index}>
               <Popup>{mapElement.description}</Popup>
             </Marker>
           );
         } else if (mapElement.type == "circle") {
           return (
             <Circle
-              center={[lat, long]}
+              center={[mapElement.lat, mapElement.long]}
               radius={mapElement.radius}
               key={index}
             />
           );
+        } else if (mapElement.type == "poly") {
+          return <Polyline positions={...mapElement.positions} />;
         } else {
           return null;
         }
@@ -206,6 +256,12 @@ function App() {
         <button onClick={() => setMode(CursorModes.none)}>none</button>
         <button onClick={() => setMode(CursorModes.marker)}>marker</button>
         <button onClick={() => setMode(CursorModes.circle)}>circle</button>
+        <button onClick={() => setMode(CursorModes.poly)}>
+          polyline/polygon
+        </button>
+        {mode === "circle" && (
+          <p>Press and hold to increase size (only on circle marker)</p>
+        )}
       </div>
     </div>
   );
