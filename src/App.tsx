@@ -61,6 +61,9 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
   const [markers, setMarkers] = useState<MapElements[]>([]);
   const [lastSelectedId, setLastSelectedId] = useState<string>();
   const [polyCoordinates, setPolyCoordinates] = useState<[number, number][]>();
+  const [polyStatus, setPolyStatus] = useState<"selecting" | "creating">(
+    "selecting"
+  );
 
   const map = useMapEvents({
     mousedown(e) {
@@ -92,10 +95,9 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
           const element = elementsCopy[selectedElementIndex];
           if (element.type == "poly") {
             element.positions[element.positions.length - 1] = [lat, lng];
-            console.log(element.positions);
+            setPolyStatus("selecting");
             setMarkers(elementsCopy);
             setPolyCoordinates(element.positions);
-            console.log(polyCoordinates);
           }
         } else {
           console.log("PolyCoordinates null", polyCoordinates);
@@ -164,12 +166,12 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
         const element = elementsCopy[selectedElementIndex];
 
         if (element.type == "poly") {
-          if (polyCoordinates && polyCoordinates.length == 1) {
+          if (polyCoordinates && polyStatus == "selecting") {
             element.positions = [...polyCoordinates, [lat, long]];
             setPolyCoordinates(element.positions);
           }
 
-          if (polyCoordinates && polyCoordinates.length > 1) {
+          if (polyCoordinates && polyStatus == "creating") {
             const lc = [...polyCoordinates];
             lc[lc.length - 1] = [lat, long];
             element.positions = lc;
