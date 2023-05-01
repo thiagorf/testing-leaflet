@@ -36,7 +36,7 @@ interface PolyInfo {
   id: string;
   type: "poly";
   subtype: PolyTypes;
-  positions: number[][];
+  positions: [number, number][];
 }
 
 interface MarkerInfo extends ElementsBaseData {
@@ -60,7 +60,7 @@ function rad(n: number) {
 function LocationMarker(props: { cursorMode: CursorModes }) {
   const [markers, setMarkers] = useState<MapElements[]>([]);
   const [lastSelectedId, setLastSelectedId] = useState<string>();
-  const [polyCoordinates, setPolyCoordinates] = useState<number[][]>();
+  const [polyCoordinates, setPolyCoordinates] = useState<[number, number][]>();
 
   const map = useMapEvents({
     mousedown(e) {
@@ -84,23 +84,26 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
 
       if (props.cursorMode == "poly") {
         if (polyCoordinates) {
+          console.log("PolyCoordinates", polyCoordinates);
           const elementsCopy = [...markers];
           const selectedElementIndex = elementsCopy.findIndex(
             (m) => m.id === lastSelectedId
           );
           const element = elementsCopy[selectedElementIndex];
           if (element.type == "poly") {
-            element.positions[-1] = [lat, lng];
-
+            element.positions[element.positions.length - 1] = [lat, lng];
+            console.log(element.positions);
             setMarkers(elementsCopy);
             setPolyCoordinates(element.positions);
+            console.log(polyCoordinates);
           }
         } else {
+          console.log("PolyCoordinates null", polyCoordinates);
           setMarkers((prev) => {
             const id = nanoid();
             setLastSelectedId(id);
 
-            const actualPositions = [[lat, lng]];
+            const actualPositions: [number, number][] = [[lat, lng]];
 
             setPolyCoordinates(actualPositions);
 
@@ -160,13 +163,19 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
         );
         const element = elementsCopy[selectedElementIndex];
 
-        if (element.type == "poly" && polyCoordinates) {
-          element.positions = [...polyCoordinates, [lat, long]];
-          setPolyCoordinates((prev) => {
-            if (prev) {
-              return [...prev, [lat, long]];
-            }
-          });
+        if (element.type == "poly") {
+          if (polyCoordinates && polyCoordinates.length == 1) {
+            element.positions = [...polyCoordinates, [lat, long]];
+            setPolyCoordinates(element.positions);
+          }
+
+          if (polyCoordinates && polyCoordinates.length > 1) {
+            const lc = [...polyCoordinates];
+            lc[lc.length - 1] = [lat, long];
+            element.positions = lc;
+
+            setPolyCoordinates(lc);
+          }
         }
       }
     },
@@ -218,7 +227,7 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
             />
           );
         } else if (mapElement.type == "poly") {
-          return <Polyline positions={...mapElement.positions} />;
+          return <Polyline positions={mapElement.positions} />;
         } else {
           return null;
         }
