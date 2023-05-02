@@ -339,10 +339,16 @@ function App() {
           <p>Press and hold to increase size (only on circle marker)</p>
         )}
         {mode === "poly" && (
-          <p>
-            Click, move and click (Polyline), click on the last created point to
-            finish
-          </p>
+          <div>
+            <p>
+              Click, move and click (Polyline), click on the last created point
+              to finish
+            </p>
+            <p>
+              Click, mode and click (minimum 3 points), click on the first point
+              to finish(Polygon)
+            </p>
+          </div>
         )}
       </div>
     </div>
