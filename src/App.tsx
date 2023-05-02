@@ -51,16 +51,55 @@ interface CircleInfo extends ElementsBaseData {
 
 type MapElements = MarkerInfo | CircleInfo | PolyInfo;
 
+interface HaversineParams {
+  lat: number;
+  long: number;
+  lat1: number;
+  long1: number;
+}
+
 const R = 6371;
 
 function rad(n: number) {
   return (n * Math.PI) / 180;
 }
 
-function LocationMarker(props: { cursorMode: CursorModes }) {
+function distanceBetweenCoordinates({
+  lat,
+  long,
+  lat1,
+  long1,
+}: HaversineParams): number {
+  const x1 = lat1 - lat;
+  const distanceLat = rad(x1);
+  const x2 = long1 - long;
+  const distanceLong = rad(x2);
+
+  //  haversine formula
+  const a =
+    Math.sin(distanceLat / 2) * Math.sin(distanceLat / 2) +
+    Math.cos(rad(lat)) *
+      Math.cos(rad(lat1)) *
+      Math.sin(distanceLong / 2) *
+      Math.sin(distanceLong / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  // * 1000 -> to kilometers
+  const d = R * c * 1000;
+  return d;
+}
+
+type CursorDispatch = React.Dispatch<React.SetStateAction<CursorModes>>;
+
+function LocationMarker(props: {
+  cursorMode: CursorModes;
+  setMode: CursorDispatch;
+}) {
   const [markers, setMarkers] = useState<MapElements[]>([]);
   const [lastSelectedId, setLastSelectedId] = useState<string>();
-  const [polyCoordinates, setPolyCoordinates] = useState<[number, number][]>();
+  const [polyCoordinates, setPolyCoordinates] = useState<
+    [number, number][] | null
+  >(null);
   const [polyStatus, setPolyStatus] = useState<"selecting" | "creating">(
     "creating"
   );
@@ -93,10 +132,27 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
           );
           const element = elementsCopy[selectedElementIndex];
           if (element.type == "poly") {
-            element.positions[element.positions.length - 1] = [lat, lng];
-            setMarkers(elementsCopy);
-            setPolyCoordinates(element.positions);
-            setPolyStatus("creating");
+            const lastElementIndex = element.positions.length - 1;
+            const [lat1, long1] = element.positions[lastElementIndex - 1];
+            const distance = distanceBetweenCoordinates({
+              lat,
+              long: lng,
+              lat1,
+              long1,
+            });
+            if (distance <= 65 && element.positions.length > 2) {
+              element.positions = element.positions.slice(0, lastElementIndex);
+              setMarkers(elementsCopy);
+              setLastSelectedId("");
+              setPolyStatus("creating");
+              setPolyCoordinates(null);
+              props.setMode(CursorModes.none);
+            } else {
+              element.positions[lastElementIndex] = [lat, lng];
+              setMarkers(elementsCopy);
+              setPolyCoordinates(element.positions);
+              setPolyStatus("creating");
+            }
           }
         } else {
           setMarkers((prev) => {
@@ -132,26 +188,8 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
         if (element.type == "circle") {
           const { lat: lat1, long: long1 } = element;
 
-          const x1 = lat1 - lat;
-          const distanceLat = rad(x1);
-
-          const x2 = long1 - long;
-          const distanceLong = rad(x2);
-
-          //  haversine formula
-          const a =
-            Math.sin(distanceLat / 2) * Math.sin(distanceLat / 2) +
-            Math.cos(rad(lat)) *
-              Math.cos(rad(lat1)) *
-              Math.sin(distanceLong / 2) *
-              Math.sin(distanceLong / 2);
-
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-          // * 1000 -> to kilometers
-          const d = R * c * 1000;
-
-          (elementsCopy[selectedElementIndex] as CircleInfo).radius = d;
+          const d = distanceBetweenCoordinates({ lat, long, lat1, long1 });
+          element.radius = d;
           setMarkers(elementsCopy);
         }
       }
@@ -228,7 +266,7 @@ function LocationMarker(props: { cursorMode: CursorModes }) {
             />
           );
         } else if (mapElement.type == "poly") {
-          return <Polyline positions={mapElement.positions} />;
+          return <Polyline positions={mapElement.positions} key={index} />;
         } else {
           return null;
         }
@@ -257,7 +295,7 @@ function App() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <LocationMarker cursorMode={mode} />
+          <LocationMarker cursorMode={mode} setMode={setMode} />
         </MapContainer>
       </div>
       <div>
@@ -272,7 +310,12 @@ function App() {
         {mode === "circle" && (
           <p>Press and hold to increase size (only on circle marker)</p>
         )}
-        {mode === "poly" && <p>Click, move and click (Polyline)</p>}
+        {mode === "poly" && (
+          <p>
+            Click, move and click (Polyline), click on the last created point to
+            finish
+          </p>
+        )}
       </div>
     </div>
   );
