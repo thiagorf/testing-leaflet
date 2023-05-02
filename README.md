@@ -29,6 +29,11 @@ elements are stored in an object and rendered through a loop,
 and each object has different characteristics based on the element type,
 so a strict check is necessary for the creation and rendering process
 
+Haversine formula is used to measure the distance between to coordinates(latitude and longitude)
+
 I think it's ok for now to bloat the App.tsx file with all code, even with that all unnecessary rerender
 
-Increase circle marker radius based on mousedown event?
+## Possible featues
+
+- Polyline/Polygon resize handlers
+- Normal marker with text input
