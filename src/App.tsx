@@ -105,6 +105,13 @@ function LocationMarker(props: {
     "creating"
   );
 
+  function resetPolyData() {
+    setLastSelectedId("");
+    setPolyStatus("creating");
+    setPolyCoordinates(null);
+    props.setMode(CursorModes.none);
+  }
+
   const map = useMapEvents({
     mousedown(e) {
       const { lat, lng } = e.latlng;
@@ -151,14 +158,9 @@ function LocationMarker(props: {
             });
 
             if (distanceForTheLastPoint <= 65 && element.positions.length > 2) {
-              // check if the first point or the last one
-
               element.positions = element.positions.slice(0, lastElementIndex);
               setMarkers(elementsCopy);
-              setLastSelectedId("");
-              setPolyStatus("creating");
-              setPolyCoordinates(null);
-              props.setMode(CursorModes.none);
+              resetPolyData();
             } else if (
               distanceFotTheFirstPoint <= 65 &&
               element.positions.length >= 3
@@ -166,11 +168,7 @@ function LocationMarker(props: {
               element.positions = element.positions.slice(0, lastElementIndex);
               element.subtype = PolyTypes.polygon;
               setMarkers(elementsCopy);
-              setLastSelectedId("");
-              setPolyStatus("creating");
-              setPolyCoordinates(null);
-              props.setMode(CursorModes.none);
-              console.log(markers);
+              resetPolyData();
             } else {
               element.positions[lastElementIndex] = [lat, lng];
               setMarkers(elementsCopy);
