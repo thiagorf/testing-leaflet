@@ -6,6 +6,7 @@ import {
   useMapEvents,
   Polyline,
   Circle,
+  Polygon,
 } from "react-leaflet";
 import "./App.css";
 import { useState } from "react";
@@ -134,19 +135,42 @@ function LocationMarker(props: {
           if (element.type == "poly") {
             const lastElementIndex = element.positions.length - 1;
             const [lat1, long1] = element.positions[lastElementIndex - 1];
-            const distance = distanceBetweenCoordinates({
+            const [firstPointLat, firstPointLong] = element.positions[0];
+            const distanceForTheLastPoint = distanceBetweenCoordinates({
               lat,
               long: lng,
               lat1,
               long1,
             });
-            if (distance <= 65 && element.positions.length > 2) {
+
+            const distanceFotTheFirstPoint = distanceBetweenCoordinates({
+              lat,
+              long: lng,
+              lat1: firstPointLat,
+              long1: firstPointLong,
+            });
+
+            if (distanceForTheLastPoint <= 65 && element.positions.length > 2) {
+              // check if the first point or the last one
+
               element.positions = element.positions.slice(0, lastElementIndex);
               setMarkers(elementsCopy);
               setLastSelectedId("");
               setPolyStatus("creating");
               setPolyCoordinates(null);
               props.setMode(CursorModes.none);
+            } else if (
+              distanceFotTheFirstPoint <= 65 &&
+              element.positions.length >= 3
+            ) {
+              element.positions = element.positions.slice(0, lastElementIndex);
+              element.subtype = PolyTypes.polygon;
+              setMarkers(elementsCopy);
+              setLastSelectedId("");
+              setPolyStatus("creating");
+              setPolyCoordinates(null);
+              props.setMode(CursorModes.none);
+              console.log(markers);
             } else {
               element.positions[lastElementIndex] = [lat, lng];
               setMarkers(elementsCopy);
@@ -266,7 +290,11 @@ function LocationMarker(props: {
             />
           );
         } else if (mapElement.type == "poly") {
-          return <Polyline positions={mapElement.positions} key={index} />;
+          if (mapElement.subtype == PolyTypes.polyline) {
+            return <Polyline positions={mapElement.positions} key={index} />;
+          } else {
+            return <Polygon positions={mapElement.positions} key={index} />;
+          }
         } else {
           return null;
         }
