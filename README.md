@@ -20,6 +20,8 @@ Testing Leafly features with OpenStreetMap for a future project
 
 ![Placing multiple line segments and creating a polygon if the segments connect itself](https://github.com/thiagorf/testing-leaflet/blob/images/docs/poly.gif)
 
+> Point precision of 65 meters
+
 ## Keypoints
 
 The rendering process is quite similar to HTML canvas,
