@@ -9,7 +9,7 @@ import {
   Polygon,
 } from "react-leaflet";
 import "./App.css";
-import { useState } from "react";
+import { ChangeEvent, useState } from "react";
 import { nanoid } from "nanoid";
 
 enum CursorModes {
@@ -258,7 +258,7 @@ function LocationMarker(props: {
             type: "marker",
             lat: lat,
             long: lng,
-            description: "A marker?",
+            description: "",
           },
         ]);
       }
@@ -270,13 +270,39 @@ function LocationMarker(props: {
     map.dragging.enable();
   }
 
+  function markerInputHandler({
+    e,
+    markerId,
+  }: {
+    e: ChangeEvent<HTMLInputElement>;
+    markerId: string;
+  }) {
+    const copyMarkers = [...markers];
+    const selectedMarkerIndex = copyMarkers.findIndex(
+      (marker) => marker.id == markerId
+    );
+    const selectedMarkerElement = copyMarkers[selectedMarkerIndex];
+    if (selectedMarkerElement.type == "marker") {
+      selectedMarkerElement.description = e.target.value;
+      setMarkers(copyMarkers);
+    }
+  }
+
   return (
     <>
       {markers.map((mapElement, index) => {
         if (mapElement.type == "marker") {
           return (
             <Marker position={[mapElement.lat, mapElement.long]} key={index}>
-              <Popup>{mapElement.description}</Popup>
+              <Popup>
+                <input
+                  type="text"
+                  value={mapElement.description}
+                  onChange={(e) =>
+                    markerInputHandler({ e, markerId: mapElement.id })
+                  }
+                />
+              </Popup>
             </Marker>
           );
         } else if (mapElement.type == "circle") {
@@ -289,7 +315,17 @@ function LocationMarker(props: {
           );
         } else if (mapElement.type == "poly") {
           if (mapElement.subtype == PolyTypes.polyline) {
-            return <Polyline positions={mapElement.positions} key={index} />;
+            return (
+              <Polyline
+                positions={mapElement.positions}
+                eventHandlers={{
+                  click(e) {
+                    console.log(e);
+                  },
+                }}
+                key={index}
+              />
+            );
           } else {
             return <Polygon positions={mapElement.positions} key={index} />;
           }
