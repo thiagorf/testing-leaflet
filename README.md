@@ -36,4 +36,3 @@ I think it's ok for now to bloat the App.tsx file with all code, even with that 
 ## Possible featues
 
 - Polyline/Polygon resize handlers
-- Normal marker with text input
