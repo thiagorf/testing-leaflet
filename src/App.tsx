@@ -7,10 +7,13 @@ import {
   Polyline,
   Circle,
   Polygon,
+  Rectangle,
 } from "react-leaflet";
 import "./App.css";
 import { ChangeEvent, useState } from "react";
 import { nanoid } from "nanoid";
+import { distanceBetweenCoordinates } from "./helpers/haversine";
+import { boundingBox } from "./helpers/bounding-box";
 
 enum CursorModes {
   none = "none",
@@ -33,7 +36,7 @@ interface ElementsBaseData extends MapCoordinates {
   id: string;
 }
 
-interface PolyInfo {
+export interface PolyInfo {
   id: string;
   type: "poly";
   subtype: PolyTypes;
@@ -52,42 +55,12 @@ interface CircleInfo extends ElementsBaseData {
 
 type MapElements = MarkerInfo | CircleInfo | PolyInfo;
 
-interface HaversineParams {
-  lat: number;
-  long: number;
-  lat1: number;
-  long1: number;
-}
+type SelectedElement = MapElements & {
+  boundingBox: [number, number][];
+};
 
-const R = 6371;
-
-function rad(n: number) {
-  return (n * Math.PI) / 180;
-}
-
-function distanceBetweenCoordinates({
-  lat,
-  long,
-  lat1,
-  long1,
-}: HaversineParams): number {
-  const x1 = lat1 - lat;
-  const distanceLat = rad(x1);
-  const x2 = long1 - long;
-  const distanceLong = rad(x2);
-
-  //  haversine formula
-  const a =
-    Math.sin(distanceLat / 2) * Math.sin(distanceLat / 2) +
-    Math.cos(rad(lat)) *
-      Math.cos(rad(lat1)) *
-      Math.sin(distanceLong / 2) *
-      Math.sin(distanceLong / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  // * 1000 -> to kilometers
-  const d = R * c * 1000;
-  return d;
+interface SourceTargetData {
+  _latlngs: { lat: number; lng: number }[];
 }
 
 type CursorDispatch = React.Dispatch<React.SetStateAction<CursorModes>>;
@@ -97,6 +70,7 @@ function LocationMarker(props: {
   setMode: CursorDispatch;
 }) {
   const [markers, setMarkers] = useState<MapElements[]>([]);
+  const [selected, setSelected] = useState<SelectedElement>();
   const [lastSelectedId, setLastSelectedId] = useState<string>();
   const [polyCoordinates, setPolyCoordinates] = useState<
     [number, number][] | null
@@ -211,6 +185,8 @@ function LocationMarker(props: {
           const { lat: lat1, long: long1 } = element;
 
           const d = distanceBetweenCoordinates({ lat, long, lat1, long1 });
+
+          console.log("d", d);
           element.radius = d;
           setMarkers(elementsCopy);
         }
@@ -290,6 +266,12 @@ function LocationMarker(props: {
 
   return (
     <>
+      {selected && (
+        <Rectangle
+          bounds={[selected.boundingBox[0], selected.boundingBox[3]]}
+          pathOptions={{ color: "gray" }}
+        />
+      )}
       {markers.map((mapElement, index) => {
         if (mapElement.type == "marker") {
           return (
@@ -320,14 +302,37 @@ function LocationMarker(props: {
                 positions={mapElement.positions}
                 eventHandlers={{
                   click(e) {
-                    console.log(e);
+                    if (props.cursorMode === "none") {
+                      const a = e.sourceTarget as SourceTargetData;
+                      console.log(a._latlngs);
+                      console.log(markers);
+                    }
                   },
                 }}
                 key={index}
               />
             );
           } else {
-            return <Polygon positions={mapElement.positions} key={index} />;
+            return (
+              <Polygon
+                positions={mapElement.positions}
+                eventHandlers={{
+                  click(e) {
+                    if (props.cursorMode === "none") {
+                      const a = e.sourceTarget as SourceTargetData;
+                      console.log(a._latlngs);
+                      setSelected({
+                        ...mapElement,
+                        boundingBox: boundingBox({
+                          positions: mapElement.positions,
+                        }),
+                      });
+                    }
+                  },
+                }}
+                key={index}
+              />
+            );
           }
         } else {
           return null;
