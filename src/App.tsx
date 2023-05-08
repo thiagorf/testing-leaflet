@@ -20,6 +20,7 @@ enum CursorModes {
   marker = "marker",
   circle = "circle",
   poly = "poly",
+  selection = "selection",
 }
 
 enum PolyTypes {
@@ -57,6 +58,7 @@ type MapElements = MarkerInfo | CircleInfo | PolyInfo;
 
 type SelectedElement = MapElements & {
   boundingBox: [number, number][];
+  lastPosition: [number, number];
 };
 
 interface SourceTargetData {
@@ -64,6 +66,74 @@ interface SourceTargetData {
 }
 
 type CursorDispatch = React.Dispatch<React.SetStateAction<CursorModes>>;
+
+type CentroidNCoordinates = [number, number][];
+
+function getCentroid(coordinates: CentroidNCoordinates) {
+  const polygonLength = coordinates.length;
+  const sumOfLat = coordinates.reduce((arr, value) => (arr += value[0]), 0);
+  const sumOfLong = coordinates.reduce((arr, value) => (arr += value[1]), 0);
+
+  const centroid = [sumOfLat / polygonLength, sumOfLong / polygonLength];
+
+  return centroid;
+}
+
+type BearingAngleCoodinates = {
+  startPoint: number[];
+  endPoint: number[];
+};
+
+function getBearing({ startPoint, endPoint }: BearingAngleCoodinates) {
+  const y = Math.sin(endPoint[1] - startPoint[1]) * Math.cos(endPoint[0]);
+  const x =
+    Math.cos(startPoint[0]) * Math.sin(endPoint[0]) -
+    Math.sin(startPoint[0]) *
+      Math.cos(endPoint[0]) *
+      Math.cos(endPoint[1] - startPoint[1]);
+
+  const o = Math.atan2(y, x);
+
+  const bearing = ((o * 180) / Math.PI + 360) % 360;
+
+  return bearing;
+}
+
+type DestinationCoordinates = {
+  startPoint: number[];
+  bearing: number;
+  distance: number;
+};
+
+function getDestination({
+  startPoint,
+  bearing,
+  distance,
+}: DestinationCoordinates) {
+  /*
+     *φ2 = asin( sin φ1 ⋅ cos δ + cos φ1 ⋅ sin δ ⋅ cos θ )
+	λ2 = λ1 + atan2( sin θ ⋅ sin δ ⋅ cos φ1, cos δ − sin φ1 ⋅ sin φ2 )
+where 	φ is latitude, 
+        λ is longitude, 
+        θ is the bearing (clockwise from north), 
+        δ is the angular distance d/R; 
+        d being the distance travelled, R the earth’s radius
+     * */
+
+  const r = 6371;
+  const targetLatitude = Math.asin(
+    Math.sin(startPoint[0]) * Math.cos(distance / r) +
+      Math.cos(startPoint[0]) * Math.sin(distance / r) * Math.cos(bearing)
+  );
+  const targetLongitude =
+    startPoint[1] +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(distance / r) * Math.cos(startPoint[0]),
+      Math.cos(distance / r) -
+        Math.sin(startPoint[0]) * Math.sin(targetLatitude)
+    );
+  return [targetLatitude, targetLongitude];
+}
 
 function LocationMarker(props: {
   cursorMode: CursorModes;
@@ -226,6 +296,7 @@ function LocationMarker(props: {
     },
     click(e) {
       const { lat, lng } = e.latlng;
+      console.log("map click", lat, lng);
       if (props.cursorMode == "marker") {
         setMarkers((prev) => [
           ...prev,
@@ -270,6 +341,98 @@ function LocationMarker(props: {
         <Rectangle
           bounds={[selected.boundingBox[0], selected.boundingBox[3]]}
           pathOptions={{ color: "gray" }}
+          eventHandlers={{
+            mousedown(e) {
+              console.log(e);
+              props.setMode(CursorModes.selection);
+              /*
+              const { lat, lng } = e.latlng;
+              //centroid lat-long
+              const { lastPosition } = selected;
+
+              const offset = [lat - lastPosition[0], lng - lastPosition[1]];
+              const selectedCopy = { ...selected };
+              selectedCopy.lastPosition = [lat, lng];
+*/
+              /*
+              const bearing = getBearing({
+                startPoint: [lat, lng],
+                endPoint: centroid,
+              });
+
+              const d = distanceBetweenCoordinates({
+                lat,
+                long: lng,
+                lat1: centroid[0],
+                long1: centroid[1],
+              });
+              const distance = d / 1000;
+              console.log("distance", distance);
+              console.log("bearing", bearing);
+              const destination = getDestination({
+                startPoint: [lat, lng],
+                distance: distance,
+                bearing,
+              });
+
+              console.log("destination", destination);
+
+              const newCoordinates = [];
+              //offset = [latlngs[i].lat - center.lat, latlngs[i].lng - center.lng];
+              //newLatLngs.push([newCenter.lat + offset[0], newCenter.lng + offset[1]]);
+              for (let i = 0; i < selected.boundingBox.length; i++) {
+                const offset = [
+                  selected.boundingBox[i][0] - centroid[0],
+                  selected.boundingBox[i][1] - centroid[1],
+                ];
+                newCoordinates.push([
+                  destination[0] + offset[0],
+                  destination[1] + offset[1],
+                ]);
+              }
+              */
+            },
+            mousemove(e) {
+              if (props.cursorMode === CursorModes.selection) {
+                const { lat, lng } = e.latlng;
+                const { lastPosition } = selected;
+                const offset = [lat - lastPosition[0], lng - lastPosition[1]];
+                const selectedCopy = { ...selected };
+                selectedCopy.boundingBox = selectedCopy.boundingBox.map(
+                  (coordinates) => [
+                    coordinates[0] + offset[0],
+                    coordinates[1] + offset[1],
+                  ]
+                );
+                selectedCopy.lastPosition = [lat, lng];
+
+                const markersCopy = [...markers];
+                const selectedIndex = markersCopy.findIndex(
+                  (m) => m.id === selected.id
+                );
+
+                const element = markersCopy[selectedIndex];
+                if (selectedCopy.type === "poly" && element.type === "poly") {
+                  console.log("Element positions prev", element.positions);
+                  element.positions = selectedCopy.positions.map(
+                    (coordinates) => [
+                      coordinates[0] + offset[0],
+                      coordinates[1] + offset[1],
+                    ]
+                  );
+
+                  selectedCopy.positions = element.positions;
+                  console.log("Element position next", element.positions);
+                }
+
+                setSelected(selectedCopy);
+                setMarkers(markersCopy);
+              }
+            },
+            mouseup() {
+              props.setMode(CursorModes.none);
+            },
+          }}
         />
       )}
       {markers.map((mapElement, index) => {
@@ -305,7 +468,7 @@ function LocationMarker(props: {
                     if (props.cursorMode === "none") {
                       const a = e.sourceTarget as SourceTargetData;
                       console.log(a._latlngs);
-                      console.log(markers);
+                      console.log(e);
                     }
                   },
                 }}
@@ -319,15 +482,19 @@ function LocationMarker(props: {
                 eventHandlers={{
                   click(e) {
                     if (props.cursorMode === "none") {
-                      const a = e.sourceTarget as SourceTargetData;
-                      console.log(a._latlngs);
+                      const { lat, lng } = e.latlng;
+                      const bBox = boundingBox({
+                        positions: mapElement.positions,
+                      });
                       setSelected({
                         ...mapElement,
-                        boundingBox: boundingBox({
-                          positions: mapElement.positions,
-                        }),
+                        boundingBox: bBox,
+                        lastPosition: [lat, lng],
                       });
                     }
+                  },
+                  drag(e) {
+                    console.log(e);
                   },
                 }}
                 key={index}
