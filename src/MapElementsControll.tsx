@@ -270,10 +270,19 @@ export function MapElementsControll(props: {
       {selected && (
         <Rectangle
           bounds={[selected.boundingBox[0], selected.boundingBox[3]]}
-          pathOptions={{ color: "gray" }}
+          pathOptions={{
+            color: "#787276",
+            fillColor: "#848482",
+            weight: 2,
+          }}
           eventHandlers={{
             mousedown(e) {
-              console.log(e);
+              const { lat, lng } = e.latlng;
+              setSelected((prev) => {
+                if (prev) {
+                  return { ...prev, lastPosition: [lat, lng] };
+                }
+              });
               props.setMode(CursorModes.selection);
             },
             mousemove(e) {
