@@ -12,6 +12,7 @@ import { ChangeEvent, useState } from "react";
 import { nanoid } from "nanoid";
 import { distanceBetweenCoordinates } from "./helpers/haversine";
 import { boundingBox } from "./helpers/bounding-box";
+import { pointInPolygon } from "./helpers/point-in-polygon";
 
 export enum CursorModes {
   none = "none",
@@ -19,6 +20,7 @@ export enum CursorModes {
   circle = "circle",
   poly = "poly",
   selection = "selection",
+  resize = "resize",
 }
 
 enum PolyTypes {
@@ -37,24 +39,24 @@ interface ElementsBaseData extends MapCoordinates {
 
 export interface PolyInfo {
   id: string;
-  type: "poly";
+  type: CursorModes.poly;
   subtype: PolyTypes;
   positions: [number, number][];
 }
 
 interface MarkerInfo extends ElementsBaseData {
-  type: "marker";
+  type: CursorModes.marker;
   description: string;
 }
 
 interface CircleInfo extends ElementsBaseData {
-  type: "circle";
+  type: CursorModes.circle;
   radius: number;
 }
 
 type MapElements = MarkerInfo | CircleInfo | PolyInfo;
 
-type SelectedElement = MapElements & {
+export type SelectedElement = MapElements & {
   boundingBox: [number, number][];
   lastPosition: [number, number];
 };
@@ -78,6 +80,7 @@ export function MapElementsControll(props: {
   const [polyStatus, setPolyStatus] = useState<"selecting" | "creating">(
     "creating"
   );
+  const [handlerIndex, setHandlerIndex] = useState<number>(0);
 
   function resetPolyData() {
     setLastSelectedId("");
@@ -89,7 +92,23 @@ export function MapElementsControll(props: {
   const map = useMapEvents({
     mousedown(e) {
       const { lat, lng } = e.latlng;
-      if (props.cursorMode == "circle") {
+      if (selected && selected.type === CursorModes.poly) {
+        const onPointIndex = selected.positions.findIndex((v) => {
+          const d = distanceBetweenCoordinates({
+            lat,
+            long: lng,
+            lat1: v[0],
+            long1: v[1],
+          });
+
+          return d <= 60;
+        });
+        if (onPointIndex >= 0) {
+          setHandlerIndex(onPointIndex);
+          props.setMode(CursorModes.resize);
+        }
+      }
+      if (props.cursorMode == CursorModes.circle) {
         setMarkers((prev) => {
           const id = nanoid();
           setLastSelectedId(id);
@@ -97,7 +116,7 @@ export function MapElementsControll(props: {
             ...prev,
             {
               id,
-              type: "circle",
+              type: CursorModes.circle,
               lat: lat,
               long: lng,
               radius: 0,
@@ -106,14 +125,14 @@ export function MapElementsControll(props: {
         });
       }
 
-      if (props.cursorMode == "poly") {
+      if (props.cursorMode == CursorModes.poly) {
         if (polyCoordinates) {
           const elementsCopy = [...markers];
           const selectedElementIndex = elementsCopy.findIndex(
             (m) => m.id === lastSelectedId
           );
           const element = elementsCopy[selectedElementIndex];
-          if (element.type == "poly") {
+          if (element.type == CursorModes.poly) {
             const lastElementIndex = element.positions.length - 1;
             const [lat1, long1] = element.positions[lastElementIndex - 1];
             const [firstPointLat, firstPointLong] = element.positions[0];
@@ -163,7 +182,7 @@ export function MapElementsControll(props: {
               ...prev,
               {
                 id,
-                type: "poly",
+                type: CursorModes.poly,
                 subtype: PolyTypes.polyline,
                 positions: actualPositions,
               },
@@ -174,32 +193,61 @@ export function MapElementsControll(props: {
     },
     mousemove(e) {
       const { lat, lng: long } = e.latlng;
-      if (props.cursorMode == "circle" && lastSelectedId) {
+      if (props.cursorMode === CursorModes.resize) {
+        if (selected && selected.type == CursorModes.poly) {
+          const copy = { ...selected };
+          const markersCopy = [...markers];
+          const selectedCopy = markersCopy.findIndex(
+            (m) => m.id === selected.id
+          );
+          const element = markersCopy[selectedCopy];
+          const coordinates = copy.positions[handlerIndex];
+          const d = distanceBetweenCoordinates({
+            lat,
+            long,
+            lat1: coordinates[0],
+            long1: coordinates[1],
+          });
+          if (d <= 50) {
+            copy.positions[handlerIndex] = [lat, long];
+            const bbox = boundingBox({ positions: copy.positions });
+            copy.boundingBox = [...bbox];
+            if (element.type == CursorModes.poly) {
+              element.positions = [...copy.positions];
+              setSelected(copy);
+              setMarkers(markersCopy);
+            }
+          }
+          console.log(
+            "Is inside polygon?",
+            pointInPolygon([lat, long], selected)
+          );
+        }
+      } else if (props.cursorMode == CursorModes.circle && lastSelectedId) {
         const elementsCopy = [...markers];
         const selectedElementIndex = elementsCopy.findIndex(
           (m) => m.id === lastSelectedId
         );
         const element = elementsCopy[selectedElementIndex];
         // assert marker type
-        if (element.type == "circle") {
+        if (element.type == CursorModes.circle) {
           const { lat: lat1, long: long1 } = element;
 
           const d = distanceBetweenCoordinates({ lat, long, lat1, long1 });
 
-          console.log("d", d);
           element.radius = d;
           setMarkers(elementsCopy);
         }
       }
 
-      if (props.cursorMode == "poly" && lastSelectedId) {
+      if (props.cursorMode == CursorModes.poly && lastSelectedId) {
         const elementsCopy = [...markers];
         const selectedElementIndex = elementsCopy.findIndex(
           (m) => m.id === lastSelectedId
         );
         const element = elementsCopy[selectedElementIndex];
 
-        if (element.type == "poly") {
+        if (element.type == CursorModes.poly) {
           if (polyCoordinates && polyStatus == "creating") {
             element.positions = [...polyCoordinates, [lat, long]];
             setPolyCoordinates(element.positions);
@@ -216,23 +264,23 @@ export function MapElementsControll(props: {
         }
       }
     },
-    mouseup(e) {
-      //const { lat: x, lng: y } = e.latlng;
-      if (props.cursorMode == "circle") {
-        // d = √((x1 - x2)2+(y1 - y2)2)
+    mouseup() {
+      if (props.cursorMode == CursorModes.circle) {
         setLastSelectedId("");
-        console.log("Mouse up event", e);
+      }
+      if (props.cursorMode == CursorModes.resize) {
+        setHandlerIndex(0);
+        props.setMode(CursorModes.none);
       }
     },
     click(e) {
       const { lat, lng } = e.latlng;
-      console.log("map click", lat, lng);
-      if (props.cursorMode == "marker") {
+      if (props.cursorMode == CursorModes.marker) {
         setMarkers((prev) => [
           ...prev,
           {
             id: nanoid(),
-            type: "marker",
+            type: CursorModes.marker,
             lat: lat,
             long: lng,
             description: "",
@@ -241,7 +289,7 @@ export function MapElementsControll(props: {
       }
     },
   });
-  if (props.cursorMode !== "none") {
+  if (props.cursorMode !== CursorModes.none) {
     map.dragging.disable();
   } else {
     map.dragging.enable();
@@ -259,7 +307,7 @@ export function MapElementsControll(props: {
       (marker) => marker.id == markerId
     );
     const selectedMarkerElement = copyMarkers[selectedMarkerIndex];
-    if (selectedMarkerElement.type == "marker") {
+    if (selectedMarkerElement.type == CursorModes.marker) {
       selectedMarkerElement.description = e.target.value;
       setMarkers(copyMarkers);
     }
@@ -268,68 +316,82 @@ export function MapElementsControll(props: {
   return (
     <>
       {selected && (
-        <Rectangle
-          bounds={[selected.boundingBox[0], selected.boundingBox[3]]}
-          pathOptions={{
-            color: "#787276",
-            fillColor: "#848482",
-            weight: 2,
-          }}
-          eventHandlers={{
-            mousedown(e) {
-              const { lat, lng } = e.latlng;
-              setSelected((prev) => {
-                if (prev) {
-                  return { ...prev, lastPosition: [lat, lng] };
-                }
-              });
-              props.setMode(CursorModes.selection);
-            },
-            mousemove(e) {
-              if (props.cursorMode === CursorModes.selection) {
+        <>
+          <Rectangle
+            bounds={[selected.boundingBox[0], selected.boundingBox[3]]}
+            pathOptions={{
+              color: "#787276",
+              fillColor: "#848482",
+              weight: 2,
+            }}
+            eventHandlers={{
+              mousedown(e) {
                 const { lat, lng } = e.latlng;
-                const { lastPosition } = selected;
-                const offset = [lat - lastPosition[0], lng - lastPosition[1]];
-                const selectedCopy = { ...selected };
-                selectedCopy.boundingBox = selectedCopy.boundingBox.map(
-                  (coordinates) => [
-                    coordinates[0] + offset[0],
-                    coordinates[1] + offset[1],
-                  ]
-                );
-                selectedCopy.lastPosition = [lat, lng];
-
-                const markersCopy = [...markers];
-                const selectedIndex = markersCopy.findIndex(
-                  (m) => m.id === selected.id
-                );
-
-                const element = markersCopy[selectedIndex];
-                if (selectedCopy.type === "poly" && element.type === "poly") {
-                  console.log("Element positions prev", element.positions);
-                  element.positions = selectedCopy.positions.map(
+                setSelected((prev) => {
+                  if (prev) {
+                    return { ...prev, lastPosition: [lat, lng] };
+                  }
+                });
+                props.setMode(CursorModes.selection);
+              },
+              mousemove(e) {
+                const { lat, lng } = e.latlng;
+                if (props.cursorMode === CursorModes.selection) {
+                  const { lastPosition } = selected;
+                  const offset = [lat - lastPosition[0], lng - lastPosition[1]];
+                  const selectedCopy = { ...selected };
+                  selectedCopy.boundingBox = selectedCopy.boundingBox.map(
                     (coordinates) => [
                       coordinates[0] + offset[0],
                       coordinates[1] + offset[1],
                     ]
                   );
+                  selectedCopy.lastPosition = [lat, lng];
 
-                  selectedCopy.positions = element.positions;
-                  console.log("Element position next", element.positions);
+                  const markersCopy = [...markers];
+                  const selectedIndex = markersCopy.findIndex(
+                    (m) => m.id === selected.id
+                  );
+
+                  const element = markersCopy[selectedIndex];
+                  if (
+                    selectedCopy.type === CursorModes.poly &&
+                    element.type === CursorModes.poly
+                  ) {
+                    element.positions = selectedCopy.positions.map(
+                      (coordinates) => [
+                        coordinates[0] + offset[0],
+                        coordinates[1] + offset[1],
+                      ]
+                    );
+
+                    selectedCopy.positions = element.positions;
+                  }
+
+                  setSelected(selectedCopy);
+                  setMarkers(markersCopy);
                 }
-
-                setSelected(selectedCopy);
-                setMarkers(markersCopy);
-              }
-            },
-            mouseup() {
-              props.setMode(CursorModes.none);
-            },
-          }}
-        />
+              },
+              mouseup() {
+                props.setMode(CursorModes.none);
+              },
+            }}
+          />
+          {selected.type === CursorModes.poly &&
+            selected.positions.map((p, i) => (
+              <Circle
+                center={p}
+                key={i}
+                radius={60}
+                pathOptions={{
+                  color: "#373737",
+                }}
+              />
+            ))}
+        </>
       )}
       {markers.map((mapElement, index) => {
-        if (mapElement.type == "marker") {
+        if (mapElement.type == CursorModes.marker) {
           return (
             <Marker position={[mapElement.lat, mapElement.long]} key={index}>
               <Popup>
@@ -343,7 +405,7 @@ export function MapElementsControll(props: {
               </Popup>
             </Marker>
           );
-        } else if (mapElement.type == "circle") {
+        } else if (mapElement.type == CursorModes.circle) {
           return (
             <Circle
               center={[mapElement.lat, mapElement.long]}
@@ -351,14 +413,14 @@ export function MapElementsControll(props: {
               key={index}
             />
           );
-        } else if (mapElement.type == "poly") {
+        } else if (mapElement.type == CursorModes.poly) {
           if (mapElement.subtype == PolyTypes.polyline) {
             return (
               <Polyline
                 positions={mapElement.positions}
                 eventHandlers={{
                   click(e) {
-                    if (props.cursorMode === "none") {
+                    if (props.cursorMode === CursorModes.none) {
                       const a = e.sourceTarget as SourceTargetData;
                       console.log(a._latlngs);
                       console.log(e);
@@ -374,7 +436,7 @@ export function MapElementsControll(props: {
                 positions={mapElement.positions}
                 eventHandlers={{
                   click(e) {
-                    if (props.cursorMode === "none") {
+                    if (props.cursorMode === CursorModes.none) {
                       const { lat, lng } = e.latlng;
                       const bBox = boundingBox({
                         positions: mapElement.positions,

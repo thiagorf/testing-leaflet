@@ -1,4 +1,4 @@
-import { PolyInfo } from "../App";
+import { PolyInfo } from "../MapElementsControll";
 
 type BoundingBoxCoordinates = Pick<PolyInfo, "positions">;
 
