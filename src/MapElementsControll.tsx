@@ -201,22 +201,13 @@ export function MapElementsControll(props: {
             (m) => m.id === selected.id
           );
           const element = markersCopy[selectedCopy];
-          const coordinates = copy.positions[handlerIndex];
-          const d = distanceBetweenCoordinates({
-            lat,
-            long,
-            lat1: coordinates[0],
-            long1: coordinates[1],
-          });
-          if (d <= 50) {
-            copy.positions[handlerIndex] = [lat, long];
-            const bbox = boundingBox({ positions: copy.positions });
-            copy.boundingBox = [...bbox];
-            if (element.type == CursorModes.poly) {
-              element.positions = [...copy.positions];
-              setSelected(copy);
-              setMarkers(markersCopy);
-            }
+          copy.positions[handlerIndex] = [lat, long];
+          const bbox = boundingBox({ positions: copy.positions });
+          copy.boundingBox = [...bbox];
+          if (element.type == CursorModes.poly) {
+            element.positions = [...copy.positions];
+            setSelected(copy);
+            setMarkers(markersCopy);
           }
           console.log(
             "Is inside polygon?",
