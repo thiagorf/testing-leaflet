@@ -22,6 +22,10 @@ Testing Leafly features with OpenStreetMap for a future project
 
 > Point precision of 65 kilometers
 
+### Polygon resize and bounding box
+
+![Move and resize polygon with handlers](https://github.com/thiagorf/testing-leaflet/blob/images/docs/resize.gif)
+
 ## Keypoints
 
 The rendering process is quite similar to HTML canvas,
