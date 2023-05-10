@@ -95,23 +95,28 @@ export function MapElementsControll(props: {
 
       if (props.cursorMode === CursorModes.none) {
         const markersCopy = [...markers];
-        markersCopy.filter((m) => {
+        const polygonMatch = markersCopy.find((m) => {
           if (m.type === CursorModes.poly) {
-            const isInsideAPolygon = pointInPolygon([lat, lng], m.positions);
-
-            if (isInsideAPolygon) {
-              const bBox = boundingBox({
-                positions: m.positions,
-              });
-              setSelected({
-                ...m,
-                boundingBox: bBox,
-                lastPosition: [lat, lng],
-              });
-              props.setMode(CursorModes.selection);
+            if (pointInPolygon([lat, lng], m.positions)) {
+              return true;
+            } else {
+              return false;
             }
           }
         });
+        if (polygonMatch !== undefined) {
+          if (polygonMatch.type === CursorModes.poly) {
+            const bBox = boundingBox({
+              positions: polygonMatch.positions,
+            });
+            setSelected({
+              ...polygonMatch,
+              boundingBox: bBox,
+              lastPosition: [lat, lng],
+            });
+            props.setMode(CursorModes.selection);
+          }
+        }
       }
       if (selected && selected.type === CursorModes.poly) {
         const onPointIndex = selected.positions.findIndex((v) => {
