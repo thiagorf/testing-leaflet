@@ -92,6 +92,27 @@ export function MapElementsControll(props: {
   const map = useMapEvents({
     mousedown(e) {
       const { lat, lng } = e.latlng;
+
+      if (props.cursorMode === CursorModes.none) {
+        const markersCopy = [...markers];
+        markersCopy.filter((m) => {
+          if (m.type === CursorModes.poly) {
+            const isInsideAPolygon = pointInPolygon([lat, lng], m.positions);
+
+            if (isInsideAPolygon) {
+              const bBox = boundingBox({
+                positions: m.positions,
+              });
+              setSelected({
+                ...m,
+                boundingBox: bBox,
+                lastPosition: [lat, lng],
+              });
+              props.setMode(CursorModes.selection);
+            }
+          }
+        });
+      }
       if (selected && selected.type === CursorModes.poly) {
         const onPointIndex = selected.positions.findIndex((v) => {
           const d = distanceBetweenCoordinates({
@@ -193,7 +214,42 @@ export function MapElementsControll(props: {
     },
     mousemove(e) {
       const { lat, lng: long } = e.latlng;
-      if (props.cursorMode === CursorModes.resize) {
+
+      if (props.cursorMode === CursorModes.selection) {
+        if (selected) {
+          const { lastPosition } = selected;
+          const offset = [lat - lastPosition[0], long - lastPosition[1]];
+          const selectedCopy = { ...selected };
+          selectedCopy.boundingBox = selectedCopy.boundingBox.map(
+            (coordinates) => [
+              coordinates[0] + offset[0],
+              coordinates[1] + offset[1],
+            ]
+          );
+          selectedCopy.lastPosition = [lat, long];
+
+          const markersCopy = [...markers];
+          const selectedIndex = markersCopy.findIndex(
+            (m) => m.id === selected.id
+          );
+
+          const element = markersCopy[selectedIndex];
+          if (
+            selectedCopy.type === CursorModes.poly &&
+            element.type === CursorModes.poly
+          ) {
+            element.positions = selectedCopy.positions.map((coordinates) => [
+              coordinates[0] + offset[0],
+              coordinates[1] + offset[1],
+            ]);
+
+            selectedCopy.positions = element.positions;
+          }
+
+          setSelected(selectedCopy);
+          setMarkers(markersCopy);
+        }
+      } else if (props.cursorMode === CursorModes.resize) {
         if (selected && selected.type == CursorModes.poly) {
           const copy = { ...selected };
           const markersCopy = [...markers];
@@ -211,7 +267,7 @@ export function MapElementsControll(props: {
           }
           console.log(
             "Is inside polygon?",
-            pointInPolygon([lat, long], selected)
+            pointInPolygon([lat, long], selected.positions)
           );
         }
       } else if (props.cursorMode == CursorModes.circle && lastSelectedId) {
@@ -258,9 +314,10 @@ export function MapElementsControll(props: {
     mouseup() {
       if (props.cursorMode == CursorModes.circle) {
         setLastSelectedId("");
-      }
-      if (props.cursorMode == CursorModes.resize) {
+      } else if (props.cursorMode == CursorModes.resize) {
         setHandlerIndex(0);
+        props.setMode(CursorModes.none);
+      } else if (props.cursorMode == CursorModes.selection) {
         props.setMode(CursorModes.none);
       }
     },
@@ -314,58 +371,6 @@ export function MapElementsControll(props: {
               color: "#787276",
               fillColor: "#848482",
               weight: 2,
-            }}
-            eventHandlers={{
-              mousedown(e) {
-                const { lat, lng } = e.latlng;
-                setSelected((prev) => {
-                  if (prev) {
-                    return { ...prev, lastPosition: [lat, lng] };
-                  }
-                });
-                props.setMode(CursorModes.selection);
-              },
-              mousemove(e) {
-                const { lat, lng } = e.latlng;
-                if (props.cursorMode === CursorModes.selection) {
-                  const { lastPosition } = selected;
-                  const offset = [lat - lastPosition[0], lng - lastPosition[1]];
-                  const selectedCopy = { ...selected };
-                  selectedCopy.boundingBox = selectedCopy.boundingBox.map(
-                    (coordinates) => [
-                      coordinates[0] + offset[0],
-                      coordinates[1] + offset[1],
-                    ]
-                  );
-                  selectedCopy.lastPosition = [lat, lng];
-
-                  const markersCopy = [...markers];
-                  const selectedIndex = markersCopy.findIndex(
-                    (m) => m.id === selected.id
-                  );
-
-                  const element = markersCopy[selectedIndex];
-                  if (
-                    selectedCopy.type === CursorModes.poly &&
-                    element.type === CursorModes.poly
-                  ) {
-                    element.positions = selectedCopy.positions.map(
-                      (coordinates) => [
-                        coordinates[0] + offset[0],
-                        coordinates[1] + offset[1],
-                      ]
-                    );
-
-                    selectedCopy.positions = element.positions;
-                  }
-
-                  setSelected(selectedCopy);
-                  setMarkers(markersCopy);
-                }
-              },
-              mouseup() {
-                props.setMode(CursorModes.none);
-              },
             }}
           />
           {selected.type === CursorModes.poly &&
@@ -422,30 +427,7 @@ export function MapElementsControll(props: {
               />
             );
           } else {
-            return (
-              <Polygon
-                positions={mapElement.positions}
-                eventHandlers={{
-                  click(e) {
-                    if (props.cursorMode === CursorModes.none) {
-                      const { lat, lng } = e.latlng;
-                      const bBox = boundingBox({
-                        positions: mapElement.positions,
-                      });
-                      setSelected({
-                        ...mapElement,
-                        boundingBox: bBox,
-                        lastPosition: [lat, lng],
-                      });
-                    }
-                  },
-                  drag(e) {
-                    console.log(e);
-                  },
-                }}
-                key={index}
-              />
-            );
+            return <Polygon positions={mapElement.positions} key={index} />;
           }
         } else {
           return null;

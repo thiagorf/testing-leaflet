@@ -1,13 +1,13 @@
-//import pip from "point-in-polygon-hao";
-import { SelectedElement } from "../MapElementsControll";
+import { boundingBox } from "./bounding-box";
 
 type Point = [number, number];
+type PolygonPositions = [number, number][];
 
-export function pointInPolygon(point: Point, polygon: SelectedElement) {
-  const bbox = polygon.boundingBox;
-  const n = bbox.length;
+export function pointInPolygon(point: Point, positions: PolygonPositions) {
   const lat: number[] = [];
   const long: number[] = [];
+  const bbox = boundingBox({ positions });
+  const n = bbox.length;
   bbox.forEach((b) => (lat.push(b[0]), long.push(b[1])));
 
   const minLat = Math.min(...lat);
