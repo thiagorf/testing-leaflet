@@ -97,11 +97,7 @@ export function MapElementsControll(props: {
         const markersCopy = [...markers];
         const polygonMatch = markersCopy.find((m) => {
           if (m.type === CursorModes.poly) {
-            if (pointInPolygon([lat, lng], m.positions)) {
-              return true;
-            } else {
-              return false;
-            }
+            return pointInPolygon([lat, lng], m.positions);
           }
         });
         if (polygonMatch !== undefined) {
