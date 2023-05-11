@@ -1,3 +1,5 @@
+import { toRad } from "./to-radians";
+
 type DestinationCoordinates = {
   startPoint: number[];
   bearing: number;
@@ -18,18 +20,27 @@ where 	φ is latitude,
         δ is the angular distance d/R; 
         d being the distance travelled, R the earth’s radius
      * */
-
+  const d = distance / 1000;
   const r = 6371;
-  const targetLatitude = Math.asin(
-    Math.sin(startPoint[0]) * Math.cos(distance / r) +
-      Math.cos(startPoint[0]) * Math.sin(distance / r) * Math.cos(bearing)
-  );
+  const o = d / r;
+  const O = o;
+  const b = toRad(bearing);
+  const lat = toRad(startPoint[0]);
+  const long = toRad(startPoint[1]);
+
+  const sinLat2 =
+    Math.sin(lat) * Math.cos(O) + Math.cos(lat) * Math.sin(O) * Math.cos(b);
+  const targetLatitude = Math.asin(sinLat2);
   const targetLongitude =
-    startPoint[1] +
+    long +
     Math.atan2(
-      Math.sin(bearing) * Math.sin(distance / r) * Math.cos(startPoint[0]),
-      Math.cos(distance / r) -
-        Math.sin(startPoint[0]) * Math.sin(targetLatitude)
+      Math.sin(b) * Math.sin(O) * Math.cos(lat),
+      Math.cos(O) - Math.sin(lat) * Math.sin(sinLat2)
     );
-  return [targetLatitude, targetLongitude];
+
+  return [toDegrees(targetLatitude), toDegrees(targetLongitude)];
+}
+
+function toDegrees(n: number) {
+  return (n * 180) / Math.PI;
 }
