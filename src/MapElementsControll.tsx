@@ -13,6 +13,9 @@ import { nanoid } from "nanoid";
 import { distanceBetweenCoordinates } from "./helpers/haversine";
 import { boundingBox } from "./helpers/bounding-box";
 import { pointInPolygon } from "./helpers/point-in-polygon";
+import { midpoint } from "./helpers/midpoint";
+import { getDestination } from "./helpers/destination";
+import { getCentroid } from "./helpers/centroid";
 
 export enum CursorModes {
   none = "none",
@@ -59,6 +62,7 @@ type MapElements = MarkerInfo | CircleInfo | PolyInfo;
 export type SelectedElement = MapElements & {
   boundingBox: [number, number][];
   lastPosition: [number, number];
+  rotationPoint: [number, number];
 };
 
 interface SourceTargetData {
@@ -105,10 +109,19 @@ export function MapElementsControll(props: {
             const bBox = boundingBox({
               positions: polygonMatch.positions,
             });
+            //bbox[1] -> top-left corner, bbox[3] -> top right corner
+            const centroidbetweenVertex = getCentroid([bBox[1], bBox[3]]);
+            console.log(centroidbetweenVertex);
+            const [dLat, dLong] = getDestination({
+              startPoint: centroidbetweenVertex,
+              bearing: 0, //Bearing = 0 -> N, Bearing = 90 -> E ...
+              distance: 300,
+            });
             setSelected({
               ...polygonMatch,
               boundingBox: bBox,
               lastPosition: [lat, lng],
+              rotationPoint: [dLat, dLong],
             });
             props.setMode(CursorModes.selection);
           }
@@ -374,17 +387,27 @@ export function MapElementsControll(props: {
               weight: 2,
             }}
           />
-          {selected.type === CursorModes.poly &&
-            selected.positions.map((p, i) => (
+          {selected.type === CursorModes.poly && (
+            <>
               <Circle
-                center={p}
-                key={i}
+                center={selected.rotationPoint}
                 radius={60}
                 pathOptions={{
                   color: "#373737",
                 }}
               />
-            ))}
+              {selected.positions.map((p, i) => (
+                <Circle
+                  center={p}
+                  key={i}
+                  radius={60}
+                  pathOptions={{
+                    color: "#373737",
+                  }}
+                />
+              ))}
+            </>
+          )}
         </>
       )}
       {markers.map((mapElement, index) => {
