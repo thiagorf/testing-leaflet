@@ -1,3 +1,5 @@
+import { toRad } from "./to-radians";
+
 interface HaversineParams {
   lat: number;
   long: number;
@@ -6,10 +8,6 @@ interface HaversineParams {
 }
 const R = 6371;
 
-function rad(n: number) {
-  return (n * Math.PI) / 180;
-}
-
 export function distanceBetweenCoordinates({
   lat,
   long,
@@ -17,15 +15,15 @@ export function distanceBetweenCoordinates({
   long1,
 }: HaversineParams): number {
   const x1 = lat1 - lat;
-  const distanceLat = rad(x1);
+  const distanceLat = toRad(x1);
   const x2 = long1 - long;
-  const distanceLong = rad(x2);
+  const distanceLong = toRad(x2);
 
   //  haversine formula
   const a =
     Math.sin(distanceLat / 2) * Math.sin(distanceLat / 2) +
-    Math.cos(rad(lat)) *
-      Math.cos(rad(lat1)) *
+    Math.cos(toRad(lat)) *
+      Math.cos(toRad(lat1)) *
       Math.sin(distanceLong / 2) *
       Math.sin(distanceLong / 2);
 
