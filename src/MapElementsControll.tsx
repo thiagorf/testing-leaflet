@@ -240,6 +240,11 @@ export function MapElementsControll(props: {
               coordinates[1] + offset[1],
             ]
           );
+          const { rotationPoint } = selectedCopy;
+          selectedCopy.rotationPoint = [
+            rotationPoint[0] + offset[0],
+            rotationPoint[1] + offset[1],
+          ];
           selectedCopy.lastPosition = [lat, long];
 
           const markersCopy = [...markers];
