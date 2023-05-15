@@ -109,8 +109,8 @@ export function MapElementsControll(props: {
             const bBox = boundingBox({
               positions: polygonMatch.positions,
             });
-            //bbox[1] -> top-left corner, bbox[3] -> top right corner
-            const centroidbetweenVertex = getCentroid([bBox[1], bBox[3]]);
+            //bbox[1] -> top-left corner, bbox[2] -> top right corner
+            const centroidbetweenVertex = getCentroid([bBox[1], bBox[2]]);
             console.log(centroidbetweenVertex);
             const [dLat, dLong] = getDestination({
               startPoint: centroidbetweenVertex,
@@ -385,7 +385,7 @@ export function MapElementsControll(props: {
       {selected && (
         <>
           <Rectangle
-            bounds={[selected.boundingBox[0], selected.boundingBox[3]]}
+            bounds={[selected.boundingBox[0], selected.boundingBox[2]]}
             pathOptions={{
               color: "#787276",
               fillColor: "#848482",

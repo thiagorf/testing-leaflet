@@ -20,7 +20,7 @@ export function boundingBox(
   return [
     [minLat, maxLong],
     [maxLat, maxLong],
-    [minLat, minLong],
     [maxLat, minLong],
+    [minLat, minLong],
   ];
 }
