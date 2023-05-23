@@ -14,7 +14,6 @@ import { boundingBox } from "./helpers/bounding-box";
 import { pointInPolygon } from "./helpers/point-in-polygon";
 import { getDestination } from "./helpers/destination";
 import { getCentroid } from "./helpers/centroid";
-import { getRotationHanlderBearing } from "./helpers/get-rotation-handler-bearing";
 import { getBearing } from "./helpers/bearing";
 import { rotate } from "./helpers/rotate";
 import deepClone from "lodash.clonedeep";
@@ -47,6 +46,7 @@ export interface PolyInfo {
   id: string;
   type: CursorModes.poly;
   subtype: PolyTypes;
+  angle: number;
   positions: [number, number][];
 }
 
@@ -108,21 +108,37 @@ export function MapElementsControll(props: {
         });
         if (polygonMatch !== undefined) {
           if (polygonMatch.type === CursorModes.poly) {
-            const bBox = boundingBox({
+            const originalBbox = boundingBox({
               positions: polygonMatch.positions,
             });
+            const originalCentroid = getCentroid(originalBbox);
+            const originalPosition = rotate(
+              -polygonMatch.angle,
+              polygonMatch.positions,
+              originalCentroid
+            );
+            const bBox = boundingBox({
+              positions: originalPosition,
+            });
+            const rotatedBbox = rotate(
+              polygonMatch.angle,
+              bBox,
+              originalCentroid
+            );
             //bbox[1] -> top-left corner, bbox[2] -> top right corner
-            const centroidbetweenVertex = getCentroid([bBox[1], bBox[2]]);
+            const centroidbetweenVertex = getCentroid([
+              rotatedBbox[1],
+              rotatedBbox[2],
+            ]);
 
-            const angle = getRotationHanlderBearing(bBox);
             const [dLat, dLong] = getDestination({
               startPoint: centroidbetweenVertex,
-              bearing: angle, //Bearing = 0 -> N, Bearing = 90 -> E ...
-              distance: 1100,
+              bearing: polygonMatch.angle, //Bearing = 0 -> N, Bearing = 90 -> E ...
+              distance: 500,
             });
             setSelected({
               ...polygonMatch,
-              boundingBox: bBox,
+              boundingBox: rotatedBbox,
               lastPosition: [lat, lng],
               rotationPoint: [dLat, dLong],
             });
@@ -235,6 +251,7 @@ export function MapElementsControll(props: {
                 type: CursorModes.poly,
                 subtype: PolyTypes.polyline,
                 positions: actualPositions,
+                angle: 0,
               },
             ];
           });
@@ -273,6 +290,7 @@ export function MapElementsControll(props: {
           const rotatedBbox = rotate(offsetAngle, bBox, centroid);
           selectedCopy.rotationPoint = [rotatedPoint[0], rotatedPoint[1]];
           element.positions = rotatedPositions;
+          element.angle = rotationHandlerAngle;
           if (selectedCopy.type === CursorModes.poly)
             selectedCopy.positions = rotatedPositions;
           selectedCopy.boundingBox = rotatedBbox;
