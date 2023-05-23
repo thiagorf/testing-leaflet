@@ -5,7 +5,6 @@ import {
   Polyline,
   Circle,
   Polygon,
-  Rectangle,
 } from "react-leaflet";
 import "./App.css";
 import { ChangeEvent, useState } from "react";
@@ -13,9 +12,12 @@ import { nanoid } from "nanoid";
 import { distanceBetweenCoordinates } from "./helpers/haversine";
 import { boundingBox } from "./helpers/bounding-box";
 import { pointInPolygon } from "./helpers/point-in-polygon";
-import { midpoint } from "./helpers/midpoint";
 import { getDestination } from "./helpers/destination";
 import { getCentroid } from "./helpers/centroid";
+import { getRotationHanlderBearing } from "./helpers/get-rotation-handler-bearing";
+import { getBearing } from "./helpers/bearing";
+import { rotate } from "./helpers/rotate";
+import deepClone from "lodash.clonedeep";
 
 export enum CursorModes {
   none = "none",
@@ -24,6 +26,7 @@ export enum CursorModes {
   poly = "poly",
   selection = "selection",
   resize = "resize",
+  rotation = "rotation",
 }
 
 enum PolyTypes {
@@ -96,7 +99,6 @@ export function MapElementsControll(props: {
   const map = useMapEvents({
     mousedown(e) {
       const { lat, lng } = e.latlng;
-
       if (props.cursorMode === CursorModes.none) {
         const markersCopy = [...markers];
         const polygonMatch = markersCopy.find((m) => {
@@ -111,11 +113,12 @@ export function MapElementsControll(props: {
             });
             //bbox[1] -> top-left corner, bbox[2] -> top right corner
             const centroidbetweenVertex = getCentroid([bBox[1], bBox[2]]);
-            console.log(centroidbetweenVertex);
+
+            const angle = getRotationHanlderBearing(bBox);
             const [dLat, dLong] = getDestination({
               startPoint: centroidbetweenVertex,
-              bearing: 0, //Bearing = 0 -> N, Bearing = 90 -> E ...
-              distance: 300,
+              bearing: angle, //Bearing = 0 -> N, Bearing = 90 -> E ...
+              distance: 1100,
             });
             setSelected({
               ...polygonMatch,
@@ -128,19 +131,31 @@ export function MapElementsControll(props: {
         }
       }
       if (selected && selected.type === CursorModes.poly) {
-        const onPointIndex = selected.positions.findIndex((v) => {
-          const d = distanceBetweenCoordinates({
-            lat,
-            long: lng,
-            lat1: v[0],
-            long1: v[1],
-          });
-
-          return d <= 60;
+        const [lat1, long1] = selected.rotationPoint;
+        const distance = distanceBetweenCoordinates({
+          lat,
+          long: lng,
+          lat1,
+          long1,
         });
-        if (onPointIndex >= 0) {
-          setHandlerIndex(onPointIndex);
-          props.setMode(CursorModes.resize);
+
+        if (distance <= 65) {
+          props.setMode(CursorModes.rotation);
+        } else {
+          const onPointIndex = selected.positions.findIndex((v) => {
+            const d = distanceBetweenCoordinates({
+              lat,
+              long: lng,
+              lat1: v[0],
+              long1: v[1],
+            });
+
+            return d <= 60;
+          });
+          if (onPointIndex >= 0) {
+            setHandlerIndex(onPointIndex);
+            props.setMode(CursorModes.resize);
+          }
         }
       }
       if (props.cursorMode == CursorModes.circle) {
@@ -229,6 +244,42 @@ export function MapElementsControll(props: {
     mousemove(e) {
       const { lat, lng: long } = e.latlng;
 
+      if (props.cursorMode === CursorModes.rotation && selected) {
+        const selectedCopy = deepClone(selected);
+        const markersCopy = deepClone(markers);
+        const elementIndex = markersCopy.findIndex(
+          (i) => i.id === selectedCopy.id
+        );
+        const element = markersCopy[elementIndex];
+        if (selectedCopy.type && element.type === CursorModes.poly) {
+          const { boundingBox: bBox, rotationPoint } = selectedCopy;
+          const centroid = getCentroid(bBox);
+          const cursorAngle = getBearing({
+            startPoint: centroid,
+            endPoint: [lat, long],
+          });
+          const rotationHandlerAngle = getBearing({
+            startPoint: centroid,
+            endPoint: rotationPoint,
+          });
+          const offsetAngle = cursorAngle - rotationHandlerAngle;
+
+          const [rotatedPoint] = rotate(offsetAngle, [rotationPoint], centroid);
+          const rotatedPositions = rotate(
+            offsetAngle,
+            element.positions,
+            centroid
+          );
+          const rotatedBbox = rotate(offsetAngle, bBox, centroid);
+          selectedCopy.rotationPoint = [rotatedPoint[0], rotatedPoint[1]];
+          element.positions = rotatedPositions;
+          if (selectedCopy.type === CursorModes.poly)
+            selectedCopy.positions = rotatedPositions;
+          selectedCopy.boundingBox = rotatedBbox;
+        }
+        setSelected(selectedCopy);
+        setMarkers(markersCopy);
+      }
       if (props.cursorMode === CursorModes.selection) {
         if (selected) {
           const { lastPosition } = selected;
@@ -338,6 +389,8 @@ export function MapElementsControll(props: {
         props.setMode(CursorModes.none);
       } else if (props.cursorMode == CursorModes.selection) {
         props.setMode(CursorModes.none);
+      } else if (props.cursorMode === CursorModes.rotation) {
+        props.setMode(CursorModes.none);
       }
     },
     click(e) {
@@ -384,8 +437,8 @@ export function MapElementsControll(props: {
     <>
       {selected && (
         <>
-          <Rectangle
-            bounds={[selected.boundingBox[0], selected.boundingBox[2]]}
+          <Polygon
+            positions={selected.boundingBox}
             pathOptions={{
               color: "#787276",
               fillColor: "#848482",
