@@ -45,7 +45,7 @@ export function getDestination({
     long +
     Math.atan2(
       Math.sin(b) * Math.sin(O) * Math.cos(lat),
-      Math.cos(O) - Math.sin(lat) * Math.sin(sinLat2)
+      Math.cos(O) - Math.sin(lat) * Math.sin(targetLatitude)
     );
   //Convert to required fromat
   return [toDegrees(targetLatitude), toDegrees(targetLongitude)];
