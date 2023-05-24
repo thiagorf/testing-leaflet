@@ -10,15 +10,14 @@ import "./App.css";
 import { ChangeEvent, useState } from "react";
 import { nanoid } from "nanoid";
 import { distanceBetweenCoordinates } from "./helpers/haversine";
-import { boundingBox } from "./helpers/bounding-box";
 import { pointInPolygon } from "./helpers/point-in-polygon";
-import { getDestination } from "./helpers/destination";
 import { getCentroid } from "./helpers/centroid";
 import { getBearing } from "./helpers/bearing";
 import { rotate } from "./helpers/rotate";
 import deepClone from "lodash.clonedeep";
 import { getRotatedBbox } from "./helpers/rotated-bbox";
 import { getRotationHandler } from "./helpers/rotation-handler";
+import { getMiddlepointBbox } from "./helpers/middlepoint-bbox";
 
 export enum CursorModes {
   none = "none",
@@ -66,6 +65,7 @@ type MapElements = MarkerInfo | CircleInfo | PolyInfo;
 
 export type SelectedElement = MapElements & {
   boundingBox: [number, number][];
+  bBoxMiddlePoints: [number, number][];
   lastPosition: [number, number];
   rotationPoint: [number, number];
 };
@@ -118,12 +118,14 @@ export function MapElementsControll(props: {
               polygonMatch.angle,
               rotatedBbox
             );
+            const middlePoints = getMiddlepointBbox(rotatedBbox);
 
             setSelected({
               ...polygonMatch,
               boundingBox: rotatedBbox,
               lastPosition: [lat, lng],
               rotationPoint: [dLat, dLong],
+              bBoxMiddlePoints: middlePoints,
             });
             props.setMode(CursorModes.selection);
           }
@@ -471,6 +473,18 @@ export function MapElementsControll(props: {
                   }}
                 />
               ))}
+              {[...selected.boundingBox, ...selected.bBoxMiddlePoints].map(
+                (p, i) => (
+                  <Circle
+                    center={p}
+                    key={i}
+                    radius={60}
+                    pathOptions={{
+                      color: "#373737",
+                    }}
+                  />
+                )
+              )}
             </>
           )}
         </>
