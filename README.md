@@ -26,6 +26,10 @@ Testing Leafly features with OpenStreetMap for a future project
 
 ![Move and resize polygon with handlers](https://github.com/thiagorf/testing-leaflet/blob/images/docs/resize.gif)
 
+### Polygon and Polyline rotation
+
+![Rotate polygon and polylines with handlers](https://github.com/thiagorf/testing-leaflet/blob/images/docs/rotation.gif)
+
 ## Keypoints
 
 The rendering process is quite similar to HTML canvas,
