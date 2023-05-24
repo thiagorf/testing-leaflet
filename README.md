@@ -41,7 +41,7 @@ Haversine formula is used to measure the distance between two coordinates(latitu
 
 The rotation Matrix doesn't work for rotations because the coordinates are geographic values in a projection(map)
 
-The bearing angle is to agressive for rotation, so an offset angle  is necessary between the roation handler and the cursor
+The bearing angle is too agressive for rotation, so an offset angle is necessary between the roation handler and the cursor
 
 ## Possible featues
 
