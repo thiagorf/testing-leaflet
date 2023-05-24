@@ -17,6 +17,8 @@ import { getCentroid } from "./helpers/centroid";
 import { getBearing } from "./helpers/bearing";
 import { rotate } from "./helpers/rotate";
 import deepClone from "lodash.clonedeep";
+import { getRotatedBbox } from "./helpers/rotated-bbox";
+import { getRotationHandler } from "./helpers/rotation-handler";
 
 export enum CursorModes {
   none = "none",
@@ -108,34 +110,15 @@ export function MapElementsControll(props: {
         });
         if (polygonMatch !== undefined) {
           if (polygonMatch.type === CursorModes.poly) {
-            const originalBbox = boundingBox({
-              positions: polygonMatch.positions,
-            });
-            const originalCentroid = getCentroid(originalBbox);
-            const originalPosition = rotate(
-              -polygonMatch.angle,
-              polygonMatch.positions,
-              originalCentroid
-            );
-            const bBox = boundingBox({
-              positions: originalPosition,
-            });
-            const rotatedBbox = rotate(
+            const rotatedBbox = getRotatedBbox(
               polygonMatch.angle,
-              bBox,
-              originalCentroid
+              polygonMatch.positions
             );
-            //bbox[1] -> top-left corner, bbox[2] -> top right corner
-            const centroidbetweenVertex = getCentroid([
-              rotatedBbox[1],
-              rotatedBbox[2],
-            ]);
+            const [dLat, dLong] = getRotationHandler(
+              polygonMatch.angle,
+              rotatedBbox
+            );
 
-            const [dLat, dLong] = getDestination({
-              startPoint: centroidbetweenVertex,
-              bearing: polygonMatch.angle, //Bearing = 0 -> N, Bearing = 90 -> E ...
-              distance: 500,
-            });
             setSelected({
               ...polygonMatch,
               boundingBox: rotatedBbox,
@@ -339,24 +322,30 @@ export function MapElementsControll(props: {
         }
       } else if (props.cursorMode === CursorModes.resize) {
         if (selected && selected.type == CursorModes.poly) {
-          const copy = { ...selected };
-          const markersCopy = [...markers];
-          const selectedCopy = markersCopy.findIndex(
+          const selectedCopy = deepClone(selected);
+          const markersCopy = deepClone(markers);
+          const selectedIndex = markersCopy.findIndex(
             (m) => m.id === selected.id
           );
-          const element = markersCopy[selectedCopy];
-          copy.positions[handlerIndex] = [lat, long];
-          const bbox = boundingBox({ positions: copy.positions });
-          copy.boundingBox = [...bbox];
+          const element = markersCopy[selectedIndex];
+          selectedCopy.positions[handlerIndex] = [lat, long];
+
+          const rotatedBbox = getRotatedBbox(
+            selectedCopy.angle,
+            selectedCopy.positions
+          );
+
+          const [dLat, dLong] = getRotationHandler(
+            selectedCopy.angle,
+            rotatedBbox
+          );
+          selectedCopy.boundingBox = rotatedBbox;
+          selectedCopy.rotationPoint = [dLat, dLong];
           if (element.type == CursorModes.poly) {
-            element.positions = [...copy.positions];
-            setSelected(copy);
+            element.positions = [...selectedCopy.positions];
+            setSelected(selectedCopy);
             setMarkers(markersCopy);
           }
-          console.log(
-            "Is inside polygon?",
-            pointInPolygon([lat, long], selected.positions)
-          );
         }
       } else if (props.cursorMode == CursorModes.circle && lastSelectedId) {
         const elementsCopy = [...markers];
