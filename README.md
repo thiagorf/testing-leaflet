@@ -39,8 +39,10 @@ so a strict check is necessary for the creation and rendering process
 
 Haversine formula is used to measure the distance between two coordinates(latitude and longitude)
 
-I think it's ok for now to bloat the App.tsx file with all code, even with that all unnecessary rerender
+The rotation Matrix doesn't work for rotations because the coordinates are geographic values in a projection(map)
+
+The bearing angle is to agressive for rotation, so an offset angle  is necessary between the roation handler and the cursor
 
 ## Possible featues
 
-- Polyline/Polygon resize handlers
+- Bounding Box vertex and middlepoints handlers (resize, scale)
