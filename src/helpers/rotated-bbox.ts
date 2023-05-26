@@ -13,6 +13,5 @@ export function getRotatedBbox(
   const originalPosition = rotate(-angle, positions, originalCentroid);
   const bbox = boundingBox({ positions: originalPosition });
   const rotatedBbox = rotate(angle, bbox, originalCentroid);
-
   return rotatedBbox;
 }

@@ -8,16 +8,16 @@ interface HaversineParams {
 }
 const R = 6371;
 
-export function distanceBetweenCoordinates({
+export function getDistance({
   lat,
   long,
   lat1,
   long1,
 }: HaversineParams): number {
-  const x1 = lat1 - lat;
-  const distanceLat = toRad(x1);
-  const x2 = long1 - long;
-  const distanceLong = toRad(x2);
+  const x1 = toRad(lat1) - toRad(lat);
+  const distanceLat = x1;
+  const x2 = toRad(long1) - toRad(long);
+  const distanceLong = x2;
 
   //  haversine formula
   const a =

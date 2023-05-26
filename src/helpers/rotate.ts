@@ -1,6 +1,6 @@
 import { getBearing } from "./bearing";
 import { getCentroid } from "./centroid";
-import { distanceBetweenCoordinates } from "./haversine.ts";
+import { getDistance } from "./distance";
 import { getDestination } from "./destination";
 
 export function rotate(
@@ -9,13 +9,13 @@ export function rotate(
   centroid?: number[]
 ): [number, number][] {
   // Rotation matrix doesn't work well with geographic coordinates
-  const anchor = centroid == undefined ? getCentroid(positions) : centroid;
+  const anchor = centroid ?? getCentroid(positions);
   const rotatedVertex = positions.map((v): [number, number] => {
     const initialAngle = getBearing({
       startPoint: anchor,
       endPoint: v,
     });
-    const distance = distanceBetweenCoordinates({
+    const distance = getDistance({
       lat: anchor[0],
       long: anchor[1],
       lat1: v[0],
