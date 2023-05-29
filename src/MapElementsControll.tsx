@@ -370,8 +370,6 @@ export function MapElementsControll(props: {
             } else {
               if (element.type == CursorModes.poly) {
                 if (handlerPoint !== undefined) {
-                  // Create a function to handle all cases
-                  // const [] = resizeElement(cursor, handlerPoint, position)
                   cornerAction({
                     cursor: [lat, long],
                     rotationPoints: {
@@ -381,21 +379,6 @@ export function MapElementsControll(props: {
                     },
                     corner: { handlerPoint, position, index },
                   });
-                  /*
-                  const corner = cornerAction(
-                    [lat, long],
-                    handlerPoint,
-                    position
-                  );
-                  console.log(corner);
-                  if (corner) {
-                    selectedCopy.bBoxMiddlePoints[index] = [
-                      corner.lat,
-                      corner.long,
-                    ];
-                    selectedCopy.boundingBox[1][0] = corner.lat;
-                    selectedCopy.boundingBox[2][0] = corner.lat;
-                  }*/
                 }
               }
             }

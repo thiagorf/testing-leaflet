@@ -1,5 +1,5 @@
-import { getDistance } from "./distance";
 import { ElementPosition } from "./near-point";
+import { LAT } from "../constants";
 /*
 cornerAction(
   [lat, long],
@@ -31,39 +31,53 @@ export function cornerAction(params: CornersResize) {
   switch (position) {
     case "n":
       {
-        /*
-        const polygonMatch = coordinates.findIndex((p) => {
-          return p[0] == cursor[0];
-        });
-
-        console.log(polygonMatch);
-        if (polygonMatch !== -1) {
-          coordinates[polygonMatch][0] = cursor[0];
-        }*/
         const topLeft = bbox[1];
         const topRight = bbox[2];
 
-        const minLat = Math.min(topLeft[0], topRight[0]);
-        const maxLat = Math.max(topLeft[0], topRight[0]);
+        const minLat = Math.min(topLeft[LAT], topRight[LAT]);
+        const maxLat = Math.max(topLeft[LAT], topRight[LAT]);
+        const pointInNorthEdge = checkPointInEdge(coordinates, maxLat, minLat);
 
-        const pointInBoundingBox = coordinates.reduce<number[]>(
-          (ac, value, i) =>
-            value[0] >= maxLat && value[0] <= minLat ? ac.concat(i) : ac,
-          []
-        );
-
-        for (const ind of pointInBoundingBox) {
-          coordinates[ind][0] = cursor[0];
+        for (const ind of pointInNorthEdge) {
+          coordinates[ind][LAT] = cursor[LAT];
         }
         // check if are more than one point in line
-        middlePoints[index][0] = cursor[0];
-        bbox[1][0] = cursor[0];
-        bbox[2][0] = cursor[0];
+        middlePoints[index][LAT] = cursor[LAT];
+        bbox[1][LAT] = cursor[LAT];
+        bbox[2][LAT] = cursor[LAT];
+        // Move rotation point
       }
       break;
     case "s":
-      middlePoints[index][0] = cursor[0];
-      bbox[0][0] = cursor[0];
-      bbox[3][0] = cursor[0];
+      {
+        const bottomLeft = bbox[0];
+        const bottomRight = bbox[3];
+
+        const minLat = Math.min(bottomLeft[LAT], bottomRight[LAT]);
+        const maxLat = Math.max(bottomLeft[LAT], bottomRight[LAT]);
+
+        const pointInSouthEdge = checkPointInEdge(coordinates, maxLat, minLat);
+
+        for (const ind of pointInSouthEdge) {
+          coordinates[ind][LAT] = cursor[LAT];
+        }
+
+        middlePoints[index][LAT] = cursor[LAT];
+        bbox[0][LAT] = cursor[LAT];
+        bbox[3][LAT] = cursor[LAT];
+      }
+      break;
   }
+}
+
+function checkPointInEdge(
+  coordinates: [number, number][],
+  maxLat: number,
+  minLat: number
+) {
+  return coordinates.reduce<number[]>(
+    (ac, value, i) =>
+      value[0] >= maxLat && value[0] <= minLat ? ac.concat(i) : ac,
+    []
+  );
 }
