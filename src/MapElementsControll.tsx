@@ -19,6 +19,7 @@ import { getRotatedBbox } from "./helpers/rotated-bbox";
 import { getRotationHandler } from "./helpers/rotation-handler";
 import { getMiddlepointBbox } from "./helpers/middlepoint-bbox";
 import { ElementPosition, nearPoint } from "./helpers/near-point";
+import { cornerAction } from "./helpers/corner-action";
 
 export enum CursorModes {
   none = "none",
@@ -78,7 +79,7 @@ interface SourceTargetData {
 type CursorDispatch = React.Dispatch<React.SetStateAction<CursorModes>>;
 
 interface Handler {
-  index?: number;
+  index: number;
   handlerPoint?: [number, number];
   position: ElementPosition | "vertex";
 }
@@ -140,7 +141,7 @@ export function MapElementsControll(props: {
       }
       if (selected && selected.type === CursorModes.poly) {
         const [lat1, long1] = selected.rotationPoint;
-        const { corner, cornerPosition } = nearPoint(
+        const { corner, cornerIndex, cornerPosition } = nearPoint(
           [lat, lng],
           selected.bBoxMiddlePoints,
           selected.boundingBox,
@@ -163,8 +164,17 @@ export function MapElementsControll(props: {
         if (onPointIndex >= 0) {
           setHandler({ index: onPointIndex, position: "vertex" });
           props.setMode(CursorModes.resize);
-        } else if (corner !== undefined && cornerPosition !== undefined) {
-          setHandler({ handlerPoint: corner, position: cornerPosition });
+        } else if (
+          corner !== undefined &&
+          cornerPosition !== undefined &&
+          cornerIndex !== undefined
+        ) {
+          props.setMode(CursorModes.resize);
+          setHandler({
+            index: cornerIndex,
+            handlerPoint: corner,
+            position: cornerPosition,
+          });
         }
       }
       if (props.cursorMode == CursorModes.circle) {
@@ -332,29 +342,63 @@ export function MapElementsControll(props: {
         }
       } else if (props.cursorMode === CursorModes.resize) {
         if (selected && selected.type == CursorModes.poly) {
-          const selectedCopy = deepClone(selected);
-          const markersCopy = deepClone(markers);
-          const selectedIndex = markersCopy.findIndex(
-            (m) => m.id === selected.id
-          );
-          const element = markersCopy[selectedIndex];
-          if (handler && handler.index !== undefined) {
-            selectedCopy.positions[handler.index] = [lat, long];
-          }
+          if (handler) {
+            const { position, index, handlerPoint } = handler;
+            const selectedCopy = deepClone(selected);
+            const markersCopy = deepClone(markers);
+            const selectedIndex = markersCopy.findIndex(
+              (m) => m.id === selected.id
+            );
+            const element = markersCopy[selectedIndex];
+            if (position == "vertex") {
+              selectedCopy.positions[index] = [lat, long];
 
-          const rotatedBbox = getRotatedBbox(
-            selectedCopy.angle,
-            selectedCopy.positions
-          );
+              const rotatedBbox = getRotatedBbox(
+                selectedCopy.angle,
+                selectedCopy.positions
+              );
 
-          const [dLat, dLong] = getRotationHandler(
-            selectedCopy.angle,
-            rotatedBbox
-          );
-          selectedCopy.boundingBox = rotatedBbox;
-          selectedCopy.rotationPoint = [dLat, dLong];
-          if (element.type == CursorModes.poly) {
-            element.positions = [...selectedCopy.positions];
+              const [dLat, dLong] = getRotationHandler(
+                selectedCopy.angle,
+                rotatedBbox
+              );
+              selectedCopy.boundingBox = rotatedBbox;
+              selectedCopy.rotationPoint = [dLat, dLong];
+              if (element.type == CursorModes.poly) {
+                element.positions = [...selectedCopy.positions];
+              }
+            } else {
+              if (element.type == CursorModes.poly) {
+                if (handlerPoint !== undefined) {
+                  // Create a function to handle all cases
+                  // const [] = resizeElement(cursor, handlerPoint, position)
+                  cornerAction({
+                    cursor: [lat, long],
+                    rotationPoints: {
+                      coordinates: element.positions,
+                      bbox: selectedCopy.boundingBox,
+                      middlePoints: selectedCopy.bBoxMiddlePoints,
+                    },
+                    corner: { handlerPoint, position, index },
+                  });
+                  /*
+                  const corner = cornerAction(
+                    [lat, long],
+                    handlerPoint,
+                    position
+                  );
+                  console.log(corner);
+                  if (corner) {
+                    selectedCopy.bBoxMiddlePoints[index] = [
+                      corner.lat,
+                      corner.long,
+                    ];
+                    selectedCopy.boundingBox[1][0] = corner.lat;
+                    selectedCopy.boundingBox[2][0] = corner.lat;
+                  }*/
+                }
+              }
+            }
             setSelected(selectedCopy);
             setMarkers(markersCopy);
           }

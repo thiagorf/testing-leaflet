@@ -18,8 +18,9 @@ export type ElementPosition =
   | "rotation";
 
 interface CornerMatch {
-  corner: [number, number];
-  cornerPosition: ElementPosition;
+  corner: [number, number] | undefined;
+  cornerIndex: number | undefined;
+  cornerPosition: ElementPosition | undefined;
 }
 
 export function nearPoint(
@@ -36,15 +37,15 @@ export function nearPoint(
   order.push(rotationPoint);
 
   const elementPositions = [
-    "bl",
-    "w",
-    "tl",
-    "n",
-    "tr",
-    "e",
-    "br",
-    "s",
-    "rotation",
+    ["bl", 0],
+    ["w", 0],
+    ["tl", 1],
+    ["n", 1],
+    ["tr", 2],
+    ["e", 2],
+    ["br", 3],
+    ["s", 3],
+    ["rotation", 0],
   ] as const;
 
   const match = order.findIndex((m) => {
@@ -57,8 +58,22 @@ export function nearPoint(
 
     return d <= 65;
   });
+
+  if (match === -1) {
+    return {
+      corner: undefined,
+      cornerIndex: undefined,
+      cornerPosition: undefined,
+    };
+  }
+
+  // Clockwise order
+  // Bounding box = bl, tl, tr , br
+  // Middle points = w, n, e, s
+  // Complete bounding box = bl, w, tl, n, tr, e, br, s
   return {
     corner: order[match],
-    cornerPosition: elementPositions[match],
+    cornerIndex: elementPositions[match][1], // 1 -> index in the clockwise order (bl = index 0, tl = index 1 ...),
+    cornerPosition: elementPositions[match][0], //0 -> which corner,
   };
 }

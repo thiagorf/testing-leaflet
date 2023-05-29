@@ -5,7 +5,6 @@ type BoundingBoxCoordinates = Pick<PolyInfo, "positions">;
 export function boundingBox(
   coordinates: BoundingBoxCoordinates
 ): [number, number][] {
-  /*
   const lat: number[] = [],
     long: number[] = [];
 
@@ -16,9 +15,10 @@ export function boundingBox(
   const minLong = Math.min(...long);
   const maxLong = Math.max(...long);
 
-  console.log(minLat, maxLat, minLong, maxLong);
+  //console.log(minLat, maxLat, minLong, maxLong);
   // required coordinates: [minLat, maxLog], [maxLat, minLong]
-*/
+
+  /*
   const { positions } = coordinates;
   let minLat = positions[0][0];
   let maxLat = positions[0][0];
@@ -39,7 +39,7 @@ export function boundingBox(
       maxLong = long;
     }
   }
-
+*/
   // min|min -> bl, max|min -> tl, max|max -> tr, min|max -> br
   return [
     [minLat, minLong],
