@@ -1,5 +1,6 @@
 import { ElementPosition } from "./near-point";
 import { LAT, LONG } from "../constants";
+import { getDistance } from "./distance";
 /*
 cornerAction(
   [lat, long],
@@ -133,12 +134,43 @@ function resizeCardinalPoints(resize: ResizeCardinal) {
   const p1 = start;
   const p2 = end;
 
-  const min = Math.min(p1[coord_type], p2[coord_type]);
-  const max = Math.max(p1[coord_type], p2[coord_type]);
+  //const min = Math.min(p1[coord_type], p2[coord_type]);
+  //const max = Math.max(p1[coord_type], p2[coord_type]);
 
-  const pointInWestEdge = checkPointInEdge(coordinates, max, min, coord_type);
+  //const pointInWestEdge = checkPointInEdge(coordinates, max, min, coord_type);
 
-  for (const ind of pointInWestEdge) {
+  const distanceBetweenEdges = Math.floor(
+    getDistance({
+      lat: p1[LAT],
+      long: p1[LONG],
+      lat1: p2[LAT],
+      long1: p2[LONG],
+    })
+  );
+
+  const pointInEdge = coordinates.reduce<number[]>((ac, p, i) => {
+    const p1ToPoint = getDistance({
+      lat: p1[LAT],
+      long: p1[LONG],
+      lat1: p[LAT],
+      long1: p[LONG],
+    });
+    const p2ToPoint = getDistance({
+      lat: p2[LAT],
+      long: p2[LONG],
+      lat1: p[LAT],
+      long1: p[LONG],
+    });
+
+    const sumOfPoints = Math.floor(p1ToPoint + p2ToPoint);
+
+    if (sumOfPoints - distanceBetweenEdges <= 50) {
+      return ac.concat(i);
+    }
+    return ac;
+  }, []);
+
+  for (const ind of pointInEdge) {
     coordinates[ind][coord_type] = cursor[coord_type];
   }
   middlePoints[index][coord_type] = cursor[coord_type];
