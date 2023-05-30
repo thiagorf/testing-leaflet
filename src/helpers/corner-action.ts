@@ -31,97 +31,119 @@ export function cornerAction(params: CornersResize) {
   switch (position) {
     case "n":
       {
-        const topLeft = bbox[1];
-        const topRight = bbox[2];
-
-        const minLat = Math.min(topLeft[LAT], topRight[LAT]);
-        const maxLat = Math.max(topLeft[LAT], topRight[LAT]);
-        const pointInNorthEdge = checkPointInEdge(
-          coordinates,
-          maxLat,
-          minLat,
-          LAT
-        );
-
-        for (const ind of pointInNorthEdge) {
-          coordinates[ind][LAT] = cursor[LAT];
-        }
-        // check if are more than one point in line
-        middlePoints[index][LAT] = cursor[LAT];
-        topLeft[LAT] = cursor[LAT];
-        topRight[LAT] = cursor[LAT];
-        // Move rotation point
+        resizeCardinalPoints({
+          handler: {
+            cursor,
+            index,
+          },
+          edge: {
+            start: bbox[1],
+            end: bbox[2],
+          },
+          resize_points: {
+            coordinates,
+            middlePoints,
+          },
+          coord_type: LAT,
+        });
       }
       break;
     case "s":
       {
-        const bottomLeft = bbox[0];
-        const bottomRight = bbox[3];
-
-        const minLat = Math.min(bottomLeft[LAT], bottomRight[LAT]);
-        const maxLat = Math.max(bottomLeft[LAT], bottomRight[LAT]);
-
-        const pointInSouthEdge = checkPointInEdge(
-          coordinates,
-          maxLat,
-          minLat,
-          LAT
-        );
-
-        for (const ind of pointInSouthEdge) {
-          coordinates[ind][LAT] = cursor[LAT];
-        }
-
-        middlePoints[index][LAT] = cursor[LAT];
-        bottomLeft[LAT] = cursor[LAT];
-        bottomRight[LAT] = cursor[LAT];
+        resizeCardinalPoints({
+          handler: {
+            cursor,
+            index,
+          },
+          edge: {
+            start: bbox[0],
+            end: bbox[3],
+          },
+          resize_points: {
+            coordinates,
+            middlePoints,
+          },
+          coord_type: LAT,
+        });
       }
       break;
     case "w":
       {
-        const bottomLeft = bbox[0];
-        const topLeft = bbox[1];
-
-        const minLong = Math.min(bottomLeft[LONG], topLeft[LONG]);
-        const maxLong = Math.max(bottomLeft[LONG], topLeft[LONG]);
-
-        const pointInWestEdge = checkPointInEdge(
-          coordinates,
-          maxLong,
-          minLong,
-          LONG
-        );
-
-        for (const ind of pointInWestEdge) {
-          coordinates[ind][LONG] = cursor[LONG];
-        }
-        middlePoints[index][LONG] = cursor[LONG];
-        bottomLeft[LONG] = cursor[LONG];
-        topLeft[LONG] = cursor[LONG];
+        resizeCardinalPoints({
+          handler: {
+            cursor,
+            index,
+          },
+          edge: {
+            start: bbox[0],
+            end: bbox[1],
+          },
+          resize_points: {
+            coordinates,
+            middlePoints,
+          },
+          coord_type: LONG,
+        });
       }
       break;
     case "e": {
-      const bottomRight = bbox[3];
-      const topRight = bbox[2];
-
-      const minLong = Math.min(bottomRight[LONG], topRight[LONG]);
-      const maxLong = Math.max(bottomRight[LONG], topRight[LONG]);
-
-      const pointInWestEdge = checkPointInEdge(
-        coordinates,
-        maxLong,
-        minLong,
-        LONG
-      );
-
-      for (const ind of pointInWestEdge) {
-        coordinates[ind][LONG] = cursor[LONG];
-      }
-      middlePoints[index][LONG] = cursor[LONG];
-      bottomRight[LONG] = cursor[LONG];
-      topRight[LONG] = cursor[LONG];
+      resizeCardinalPoints({
+        handler: {
+          cursor,
+          index,
+        },
+        edge: {
+          start: bbox[3],
+          end: bbox[2],
+        },
+        resize_points: {
+          coordinates,
+          middlePoints,
+        },
+        coord_type: LONG,
+      });
     }
   }
+}
+
+interface ResizeCardinal {
+  handler: {
+    cursor: [number, number];
+    index: number;
+  };
+  edge: {
+    start: [number, number];
+    end: [number, number];
+  };
+  resize_points: {
+    coordinates: [number, number][];
+    middlePoints: [number, number][];
+  };
+  coord_type: 0 | 1;
+}
+
+function resizeCardinalPoints(resize: ResizeCardinal) {
+  const {
+    handler: { cursor, index },
+    edge: { start, end },
+    coord_type,
+    resize_points: { middlePoints, coordinates },
+  } = resize;
+
+  const p1 = start;
+  const p2 = end;
+
+  const min = Math.min(p1[coord_type], p2[coord_type]);
+  const max = Math.max(p1[coord_type], p2[coord_type]);
+
+  const pointInWestEdge = checkPointInEdge(coordinates, max, min, coord_type);
+
+  for (const ind of pointInWestEdge) {
+    coordinates[ind][coord_type] = cursor[coord_type];
+  }
+  middlePoints[index][coord_type] = cursor[coord_type];
+  p1[coord_type] = cursor[coord_type];
+  p2[coord_type] = cursor[coord_type];
 }
 
 function checkPointInEdge(

@@ -370,6 +370,7 @@ export function MapElementsControll(props: {
             } else {
               if (element.type == CursorModes.poly) {
                 if (handlerPoint !== undefined) {
+                  //Mutate passed objects by reference
                   cornerAction({
                     cursor: [lat, long],
                     rotationPoints: {
