@@ -1,12 +1,6 @@
 import { ElementPosition } from "./near-point";
 import { LAT, LONG } from "../constants";
 import { getDistance } from "./distance";
-/*
-cornerAction(
-  [lat, long],
-  { coordinates, bbox, middlePoints },
-  { handlerPoint, position }
-);*/
 
 interface CornersResize {
   cursor: [number, number];
@@ -134,11 +128,6 @@ function resizeCardinalPoints(resize: ResizeCardinal) {
   const p1 = start;
   const p2 = end;
 
-  //const min = Math.min(p1[coord_type], p2[coord_type]);
-  //const max = Math.max(p1[coord_type], p2[coord_type]);
-
-  //const pointInWestEdge = checkPointInEdge(coordinates, max, min, coord_type);
-
   const distanceBetweenEdges = Math.floor(
     getDistance({
       lat: p1[LAT],
@@ -176,17 +165,4 @@ function resizeCardinalPoints(resize: ResizeCardinal) {
   middlePoints[index][coord_type] = cursor[coord_type];
   p1[coord_type] = cursor[coord_type];
   p2[coord_type] = cursor[coord_type];
-}
-
-function checkPointInEdge(
-  coordinates: [number, number][],
-  max: number,
-  min: number,
-  coord_type: 0 | 1
-) {
-  return coordinates.reduce<number[]>(
-    (ac, value, i) =>
-      value[coord_type] >= max && value[coord_type] <= min ? ac.concat(i) : ac,
-    []
-  );
 }
