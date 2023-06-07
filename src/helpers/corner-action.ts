@@ -68,19 +68,27 @@ export function cornerAction(params: CornersResize) {
         topRight[LAT] = cursor[LAT];
         middlePoints[index][LAT] = cursor[LAT];
         const centroid = getCentroid(bbox);
+        const off = getBearing({
+          startPoint: centroid,
+          endPoint: cursor,
+        });
         coordinates.forEach((p) => {
-          const d = getDistance(centroid, p);
-          const b = getBearing({
-            startPoint: centroid,
-            endPoint: p,
-          });
-          const scaled = d * fac;
-          const dest = getDestination({
-            startPoint: centroid,
-            bearing: b,
-            distance: scaled,
-          });
-          p[LAT] = dest[LAT];
+          if (p[LAT] !== bottomLeft[LAT]) {
+            const d = getDistance(middlePoints[3], p);
+            const b = getBearing({
+              startPoint: middlePoints[3],
+              endPoint: p,
+            });
+            const offset = b - off;
+            console.log(offset);
+            const scaled = d * fac;
+            const dest = getDestination({
+              startPoint: middlePoints[3],
+              bearing: b,
+              distance: scaled,
+            });
+            p[LAT] = dest[LAT];
+          }
         });
       }
       break;
