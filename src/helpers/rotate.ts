@@ -8,6 +8,9 @@ export function rotate(
   positions: [number, number][],
   centroid?: number[]
 ): [number, number][] {
+  if (angle == 0) {
+    return positions;
+  }
   // Rotation matrix doesn't work well with geographic coordinates
   const anchor = centroid ?? getCentroid(positions);
   const rotatedVertex = positions.map((v): [number, number] => {
@@ -15,12 +18,7 @@ export function rotate(
       startPoint: anchor,
       endPoint: v,
     });
-    const distance = getDistance({
-      lat: anchor[0],
-      long: anchor[1],
-      lat1: v[0],
-      long1: v[1],
-    });
+    const distance = getDistance(anchor, v);
 
     const [rotatedLat, rotatedLong] = getDestination({
       startPoint: anchor,

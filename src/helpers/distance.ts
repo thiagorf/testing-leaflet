@@ -1,19 +1,10 @@
 import { toRad } from "./to-radians";
 
-interface HaversineParams {
-  lat: number;
-  long: number;
-  lat1: number;
-  long1: number;
-}
 const R = 6371;
 
-export function getDistance({
-  lat,
-  long,
-  lat1,
-  long1,
-}: HaversineParams): number {
+export function getDistance(startPoint: number[], endPoint: number[]): number {
+  const [lat, long] = startPoint;
+  const [lat1, long1] = endPoint;
   const x1 = toRad(lat1) - toRad(lat);
   const distanceLat = x1;
   const x2 = toRad(long1) - toRad(long);

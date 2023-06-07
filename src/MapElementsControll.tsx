@@ -20,6 +20,7 @@ import { getRotationHandler } from "./helpers/rotation-handler";
 import { getMiddlepointBbox } from "./helpers/middlepoint-bbox";
 import { ElementPosition, nearPoint } from "./helpers/near-point";
 import { cornerAction } from "./helpers/corner-action";
+import { boundingBox } from "./helpers/bounding-box";
 
 export enum CursorModes {
   none = "none",
@@ -118,10 +119,12 @@ export function MapElementsControll(props: {
         });
         if (polygonMatch !== undefined) {
           if (polygonMatch.type === CursorModes.poly) {
+            console.log("Positions", polygonMatch.positions);
             const rotatedBbox = getRotatedBbox(
               polygonMatch.angle,
               polygonMatch.positions
             );
+            console.log("rotatedBbox", rotatedBbox);
             const [dLat, dLong] = getRotationHandler(
               polygonMatch.angle,
               rotatedBbox
@@ -149,21 +152,6 @@ export function MapElementsControll(props: {
         );
         if (cornerPosition == "rotation") {
           props.setMode(CursorModes.rotation);
-        }
-
-        const onPointIndex = selected.positions.findIndex((v) => {
-          const d = getDistance({
-            lat,
-            long: lng,
-            lat1: v[0],
-            long1: v[1],
-          });
-
-          return d <= 60;
-        });
-        if (onPointIndex >= 0) {
-          setHandler({ index: onPointIndex, position: "vertex" });
-          props.setMode(CursorModes.resize);
         } else if (
           corner !== undefined &&
           cornerPosition !== undefined &&
@@ -175,6 +163,17 @@ export function MapElementsControll(props: {
             handlerPoint: corner,
             position: cornerPosition,
           });
+          return;
+        }
+
+        const onPointIndex = selected.positions.findIndex((v) => {
+          const d = getDistance([lat, lng], v);
+
+          return d <= 60;
+        });
+        if (onPointIndex >= 0) {
+          setHandler({ index: onPointIndex, position: "vertex" });
+          props.setMode(CursorModes.resize);
         }
       }
       if (props.cursorMode == CursorModes.circle) {
@@ -205,19 +204,15 @@ export function MapElementsControll(props: {
             const lastElementIndex = element.positions.length - 1;
             const [lat1, long1] = element.positions[lastElementIndex - 1];
             const [firstPointLat, firstPointLong] = element.positions[0];
-            const distanceForTheLastPoint = getDistance({
-              lat,
-              long: lng,
-              lat1,
-              long1,
-            });
+            const distanceForTheLastPoint = getDistance(
+              [lat, lng],
+              [lat1, long1]
+            );
 
-            const distanceFotTheFirstPoint = getDistance({
-              lat,
-              long: lng,
-              lat1: firstPointLat,
-              long1: firstPointLong,
-            });
+            const distanceFotTheFirstPoint = getDistance(
+              [lat, lng],
+              [firstPointLat, firstPointLong]
+            );
 
             if (distanceForTheLastPoint <= 65 && element.positions.length > 2) {
               element.positions = element.positions.slice(0, lastElementIndex);
@@ -397,7 +392,7 @@ export function MapElementsControll(props: {
         if (element.type == CursorModes.circle) {
           const { lat: lat1, long: long1 } = element;
 
-          const d = getDistance({ lat, long, lat1, long1 });
+          const d = getDistance([lat, long], [lat1, long1]);
 
           element.radius = d;
           setMarkers(elementsCopy);
@@ -433,6 +428,12 @@ export function MapElementsControll(props: {
         setLastSelectedId("");
       } else if (props.cursorMode == CursorModes.resize) {
         setHandler(null);
+        const copy = deepClone(selected);
+        if (copy) {
+          const adjustBbox = boundingBox({ positions: copy.boundingBox });
+          copy.boundingBox = adjustBbox;
+        }
+        setSelected(copy);
         props.setMode(CursorModes.none);
       } else if (props.cursorMode == CursorModes.selection) {
         props.setMode(CursorModes.none);

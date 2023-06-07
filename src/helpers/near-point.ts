@@ -49,12 +49,7 @@ export function nearPoint(
   ] as const;
 
   const match = order.findIndex((m) => {
-    const d = getDistance({
-      lat: cursor[0],
-      long: cursor[1],
-      lat1: m[0],
-      long1: m[1],
-    });
+    const d = getDistance(cursor, m);
 
     return d <= 65;
   });
