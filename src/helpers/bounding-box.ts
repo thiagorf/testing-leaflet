@@ -1,9 +1,6 @@
 import { PolyInfo } from "../MapElementsControll";
 import { LAT, LONG } from "../constants";
-import { getBearing } from "./bearing";
-import { getCentroid } from "./centroid";
 import { getDestination } from "./destination";
-import { getDistance } from "./distance";
 
 type BoundingBoxCoordinates = Pick<PolyInfo, "positions">;
 
@@ -34,7 +31,7 @@ export function boundingBox(
     .flat();
 
   [...positions, ...handlersBbox].forEach(
-    (x) => (lat.push(x[0]), long.push(x[1]))
+    (x) => (lat.push(x[LAT]), long.push(x[LONG]))
   );
 
   const minLat = Math.min(...lat);
@@ -51,26 +48,6 @@ export function boundingBox(
   ];
 
   return bbox;
-
-  /*
-  const centroid = getCentroid(bbox);
-
-  const bboxWithPadding = bbox.map<[number, number]>((p) => {
-    const cornerAngle = getBearing({
-      startPoint: centroid,
-      endPoint: p,
-    });
-    const paddingCorner = getDestination({
-      startPoint: p,
-      bearing: cornerAngle,
-      distance: 100,
-    });
-
-    return [paddingCorner[LAT], paddingCorner[LONG]];
-  });
-
-  return bboxWithPadding;
-  */
   /*
   return [
     [minLat, maxLong],
