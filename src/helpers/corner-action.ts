@@ -1,6 +1,10 @@
 import { ElementPosition } from "./near-point";
 import { LAT, LONG } from "../constants";
 import { getDistance } from "./distance";
+import { getCentroid } from "./centroid";
+import { getDestination } from "./destination";
+import { toRad } from "./to-radians";
+import { getBearing } from "./bearing";
 
 interface CornersResize {
   cursor: [number, number];
@@ -26,20 +30,65 @@ export function cornerAction(params: CornersResize) {
   switch (position) {
     case "n":
       {
-        resizeCardinalPoints({
-          handler: {
-            cursor,
-            index,
-          },
-          edge: {
-            start: bbox[1],
-            end: bbox[2],
-          },
-          resize_points: {
-            coordinates,
-            middlePoints,
-          },
-          coord_type: LAT,
+        const topLeft = bbox[1];
+        const topRight = bbox[2];
+        const bottomLeft = bbox[0];
+        const bottomRight = bbox[2];
+
+        //const bboxHeight = bottomRight[LAT] - bottomLeft[LAT];
+        //const newHeight = bottomRight[LAT] - cursor[LAT];
+
+        //const fac = newHeight / bboxHeight;
+
+        /*
+        const diff = Math.abs(cursor[LAT] - middlePoints[index][LAT]);
+        const avg = (cursor[LAT] + middlePoints[index][LAT]) / 2;
+        const inc = diff / avg;
+        const fac = cursor[LAT] > middlePoints[index][LAT] ? 1 + inc : 1 - inc;
+        */
+        /*
+        coordEach(feature, function (coord) {
+        var originalDistance = rhumbDistance(origin, coord);
+        var bearing = rhumbBearing(origin, coord);
+        var newDistance = originalDistance * factor;
+        var newCoord = getCoords(rhumbDestination(origin, newDistance, bearing));
+        coord[0] = newCoord[0];
+        coord[1] = newCoord[1];
+        if (coord.length === 3) coord[2] *= factor;
+      });
+            */
+        //const fac = cursor[LAT] - middlePoints[3][LAT];
+
+        const initialHeight = getDistance(bottomLeft, topLeft);
+        const newHeight = getDistance(bottomLeft, [cursor[LAT], topLeft[LONG]]);
+        const fac = newHeight / initialHeight;
+
+        console.log(fac);
+        topLeft[LAT] = cursor[LAT];
+        topRight[LAT] = cursor[LAT];
+        middlePoints[index][LAT] = cursor[LAT];
+        const centroid = getCentroid(bbox);
+        const off = getBearing({
+          startPoint: centroid,
+          endPoint: cursor,
+        });
+        coordinates.forEach((p) => {
+          if (p[LAT] !== bottomLeft[LAT]) {
+            const d = getDistance(middlePoints[3], p);
+            const b = getBearing({
+              startPoint: middlePoints[3],
+              endPoint: p,
+            });
+            const offset = b - off;
+            console.log(offset);
+            const scaled = d * fac;
+            const dest = getDestination({
+              startPoint: middlePoints[3],
+              bearing: b,
+              distance: scaled,
+            });
+            p[LAT] = dest[LAT];
+          }
         });
       }
       break;
