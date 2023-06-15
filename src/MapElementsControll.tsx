@@ -21,6 +21,16 @@ import { getMiddlepointBbox } from "./helpers/middlepoint-bbox";
 import { ElementPosition, nearPoint } from "./helpers/near-point";
 import { cornerAction } from "./helpers/corner-action";
 import { boundingBox } from "./helpers/bounding-box";
+import { PathOptions } from "leaflet";
+import { LAT, LONG } from "./constants";
+
+const handlerOptions: PathOptions = {
+  color: "#373737",
+  weight: 1,
+  fillColor: "#F8F8FF",
+  fillOpacity: 1,
+  stroke: true,
+};
 
 export enum CursorModes {
   none = "none",
@@ -119,62 +129,62 @@ export function MapElementsControll(props: {
         });
         if (polygonMatch !== undefined) {
           if (polygonMatch.type === CursorModes.poly) {
-            console.log("Positions", polygonMatch.positions);
-            const rotatedBbox = getRotatedBbox(
-              polygonMatch.angle,
-              polygonMatch.positions
-            );
-            console.log("rotatedBbox", rotatedBbox);
-            const [dLat, dLong] = getRotationHandler(
-              polygonMatch.angle,
-              rotatedBbox
-            );
-            const middlePoints = getMiddlepointBbox(rotatedBbox);
+            if (selected && selected.type == CursorModes.poly) {
+              const [lat1, long1] = selected.rotationPoint;
+              const { corner, cornerIndex, cornerPosition } = nearPoint(
+                [lat, lng],
+                selected.bBoxMiddlePoints,
+                selected.boundingBox,
+                [lat1, long1]
+              );
+              if (cornerPosition == "rotation") {
+                props.setMode(CursorModes.rotation);
+              } else if (
+                corner !== undefined &&
+                cornerPosition !== undefined &&
+                cornerIndex !== undefined
+              ) {
+                props.setMode(CursorModes.resize);
+                setHandler({
+                  index: cornerIndex,
+                  handlerPoint: corner,
+                  position: cornerPosition,
+                });
+              } else {
+                const onPointIndex = selected.positions.findIndex((v) => {
+                  const d = getDistance([lat, lng], v);
 
-            setSelected({
-              ...polygonMatch,
-              boundingBox: rotatedBbox,
-              lastPosition: [lat, lng],
-              rotationPoint: [dLat, dLong],
-              bBoxMiddlePoints: middlePoints,
-            });
-            props.setMode(CursorModes.selection);
+                  return d <= 60;
+                });
+                if (onPointIndex >= 0) {
+                  setHandler({ index: onPointIndex, position: "vertex" });
+                  props.setMode(CursorModes.resize);
+                }
+              }
+            } else {
+              const rotatedBbox = getRotatedBbox(
+                polygonMatch.angle,
+                polygonMatch.positions
+              );
+              const [dLat, dLong] = getRotationHandler(
+                polygonMatch.angle,
+                rotatedBbox
+              );
+              const middlePoints = getMiddlepointBbox(rotatedBbox);
+
+              setSelected({
+                ...polygonMatch,
+                boundingBox: rotatedBbox,
+                lastPosition: [lat, lng],
+                rotationPoint: [dLat, dLong],
+                bBoxMiddlePoints: middlePoints,
+              });
+              props.setMode(CursorModes.selection);
+            }
           }
         }
       }
       if (selected && selected.type === CursorModes.poly) {
-        const [lat1, long1] = selected.rotationPoint;
-        const { corner, cornerIndex, cornerPosition } = nearPoint(
-          [lat, lng],
-          selected.bBoxMiddlePoints,
-          selected.boundingBox,
-          [lat1, long1]
-        );
-        if (cornerPosition == "rotation") {
-          props.setMode(CursorModes.rotation);
-        } else if (
-          corner !== undefined &&
-          cornerPosition !== undefined &&
-          cornerIndex !== undefined
-        ) {
-          props.setMode(CursorModes.resize);
-          setHandler({
-            index: cornerIndex,
-            handlerPoint: corner,
-            position: cornerPosition,
-          });
-          return;
-        }
-
-        const onPointIndex = selected.positions.findIndex((v) => {
-          const d = getDistance([lat, lng], v);
-
-          return d <= 60;
-        });
-        if (onPointIndex >= 0) {
-          setHandler({ index: onPointIndex, position: "vertex" });
-          props.setMode(CursorModes.resize);
-        }
       }
       if (props.cursorMode == CursorModes.circle) {
         setMarkers((prev) => {
@@ -369,12 +379,18 @@ export function MapElementsControll(props: {
                   cornerAction({
                     cursor: [lat, long],
                     rotationPoints: {
-                      coordinates: element.positions,
+                      coordinates: selectedCopy.positions,
                       bbox: selectedCopy.boundingBox,
                       middlePoints: selectedCopy.bBoxMiddlePoints,
                     },
                     corner: { handlerPoint, position, index },
                   });
+                  element.positions = [...selectedCopy.positions];
+                  const rPoint = getRotationHandler(
+                    element.angle,
+                    selectedCopy.boundingBox
+                  );
+                  selectedCopy.rotationPoint = [rPoint[LAT], rPoint[LONG]];
                 }
               }
             }
@@ -428,12 +444,13 @@ export function MapElementsControll(props: {
         setLastSelectedId("");
       } else if (props.cursorMode == CursorModes.resize) {
         setHandler(null);
+        /*
         const copy = deepClone(selected);
         if (copy) {
           const adjustBbox = boundingBox({ positions: copy.boundingBox });
           copy.boundingBox = adjustBbox;
         }
-        setSelected(copy);
+        setSelected(copy);*/
         props.setMode(CursorModes.none);
       } else if (props.cursorMode == CursorModes.selection) {
         props.setMode(CursorModes.none);
@@ -480,7 +497,7 @@ export function MapElementsControll(props: {
       setMarkers(copyMarkers);
     }
   }
-
+  //373737
   return (
     <>
       {selected && (
@@ -498,18 +515,14 @@ export function MapElementsControll(props: {
               <Circle
                 center={selected.rotationPoint}
                 radius={60}
-                pathOptions={{
-                  color: "#373737",
-                }}
+                pathOptions={handlerOptions}
               />
               {selected.positions.map((p, i) => (
                 <Circle
                   center={p}
                   key={i}
                   radius={60}
-                  pathOptions={{
-                    color: "#373737",
-                  }}
+                  pathOptions={handlerOptions}
                 />
               ))}
               {[...selected.boundingBox, ...selected.bBoxMiddlePoints].map(
@@ -518,9 +531,7 @@ export function MapElementsControll(props: {
                     center={p}
                     key={i}
                     radius={60}
-                    pathOptions={{
-                      color: "#373737",
-                    }}
+                    pathOptions={handlerOptions}
                   />
                 )
               )}
@@ -553,21 +564,7 @@ export function MapElementsControll(props: {
           );
         } else if (mapElement.type == CursorModes.poly) {
           if (mapElement.subtype == PolyTypes.polyline) {
-            return (
-              <Polyline
-                positions={mapElement.positions}
-                eventHandlers={{
-                  click(e) {
-                    if (props.cursorMode === CursorModes.none) {
-                      const a = e.sourceTarget as SourceTargetData;
-                      console.log(a._latlngs);
-                      console.log(e);
-                    }
-                  },
-                }}
-                key={index}
-              />
-            );
+            return <Polyline positions={mapElement.positions} key={index} />;
           } else {
             return <Polygon positions={mapElement.positions} key={index} />;
           }
