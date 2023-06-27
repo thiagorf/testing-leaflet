@@ -1,3 +1,10 @@
+## Notice
+So, the resize feature it's more complicated than it seems. I have been testing multiple possible solutions and techniques, for example, a homothetic center with a scale factor, and a bounding box that respects the handler size.
+
+Because it's a map projection and not a conventional cartesian system, it's tricky to apply geometric transformations on shapes that have latitude and longitude as coordinates.
+
+TLDR: I can't think of a solution so the project may or may not continue
+
 # Map
 
 Testing Leafly features with OpenStreetMap for a future project
